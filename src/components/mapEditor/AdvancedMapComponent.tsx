@@ -12,7 +12,7 @@ import { Polygon } from 'ol/geom';
 import { getArea, getLength } from 'ol/sphere';
 import { Feature } from 'ol';
 import { fromLonLat, toLonLat } from 'ol/proj';
-import { extent } from 'ol';
+import { boundingExtent } from 'ol/extent';
 import * as turf from '@turf/turf';
 import GeoJSON from 'ol/format/GeoJSON';
 import 'ol/ol.css';
