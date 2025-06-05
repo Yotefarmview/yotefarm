@@ -9,7 +9,154 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      blocos_fazenda: {
+        Row: {
+          area_acres: number | null
+          area_m2: number | null
+          atualizado_em: string
+          coordenadas: Json
+          cor: string
+          criado_em: string
+          data_plantio: string | null
+          fazenda_id: string | null
+          id: string
+          ndvi_historico: Json | null
+          nome: string
+          perimetro: number | null
+          possui_dreno: boolean | null
+          proxima_aplicacao: string | null
+          proxima_colheita: string | null
+          tipo_cana: string | null
+          transparencia: number | null
+          ultima_aplicacao: Json | null
+        }
+        Insert: {
+          area_acres?: number | null
+          area_m2?: number | null
+          atualizado_em?: string
+          coordenadas: Json
+          cor?: string
+          criado_em?: string
+          data_plantio?: string | null
+          fazenda_id?: string | null
+          id?: string
+          ndvi_historico?: Json | null
+          nome: string
+          perimetro?: number | null
+          possui_dreno?: boolean | null
+          proxima_aplicacao?: string | null
+          proxima_colheita?: string | null
+          tipo_cana?: string | null
+          transparencia?: number | null
+          ultima_aplicacao?: Json | null
+        }
+        Update: {
+          area_acres?: number | null
+          area_m2?: number | null
+          atualizado_em?: string
+          coordenadas?: Json
+          cor?: string
+          criado_em?: string
+          data_plantio?: string | null
+          fazenda_id?: string | null
+          id?: string
+          ndvi_historico?: Json | null
+          nome?: string
+          perimetro?: number | null
+          possui_dreno?: boolean | null
+          proxima_aplicacao?: string | null
+          proxima_colheita?: string | null
+          tipo_cana?: string | null
+          transparencia?: number | null
+          ultima_aplicacao?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "blocos_fazenda_fazenda_id_fkey"
+            columns: ["fazenda_id"]
+            isOneToOne: false
+            referencedRelation: "fazendas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fazendas: {
+        Row: {
+          area_total: number | null
+          atualizado_em: string
+          cliente_id: string | null
+          criado_em: string
+          id: string
+          latitude: number | null
+          localizacao: string | null
+          longitude: number | null
+          nome: string
+          tipo_cana: string | null
+        }
+        Insert: {
+          area_total?: number | null
+          atualizado_em?: string
+          cliente_id?: string | null
+          criado_em?: string
+          id?: string
+          latitude?: number | null
+          localizacao?: string | null
+          longitude?: number | null
+          nome: string
+          tipo_cana?: string | null
+        }
+        Update: {
+          area_total?: number | null
+          atualizado_em?: string
+          cliente_id?: string | null
+          criado_em?: string
+          id?: string
+          latitude?: number | null
+          localizacao?: string | null
+          longitude?: number | null
+          nome?: string
+          tipo_cana?: string | null
+        }
+        Relationships: []
+      }
+      historico_blocos: {
+        Row: {
+          alteracao: string
+          bloco_id: string | null
+          criado_em: string
+          dados_anteriores: Json | null
+          dados_novos: Json | null
+          id: string
+          usuario_id: string | null
+        }
+        Insert: {
+          alteracao: string
+          bloco_id?: string | null
+          criado_em?: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          id?: string
+          usuario_id?: string | null
+        }
+        Update: {
+          alteracao?: string
+          bloco_id?: string | null
+          criado_em?: string
+          dados_anteriores?: Json | null
+          dados_novos?: Json | null
+          id?: string
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "historico_blocos_bloco_id_fkey"
+            columns: ["bloco_id"]
+            isOneToOne: false
+            referencedRelation: "blocos_fazenda"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
