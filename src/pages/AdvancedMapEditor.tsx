@@ -238,20 +238,32 @@ const AdvancedMapEditor: React.FC = () => {
   };
 
   const exportGeoJSON = () => {
-    const features = blocks.map(block => ({
-      type: 'Feature',
-      properties: {
-        id: block.id,
-        nome: block.nome,
-        cor: block.cor,
-        area_m2: block.area_m2,
-        area_acres: block.area_acres
-      },
-      geometry: {
-        type: 'Polygon',
-        coordinates: [JSON.parse(block.coordenadas)]
+    const features = blocks.map(block => {
+      // Fix the coordinates parsing issue - handle both string and Json types
+      let coordinates;
+      if (typeof block.coordenadas === 'string') {
+        coordinates = JSON.parse(block.coordenadas);
+      } else if (Array.isArray(block.coordenadas)) {
+        coordinates = block.coordenadas;
+      } else {
+        coordinates = [];
       }
-    }));
+
+      return {
+        type: 'Feature',
+        properties: {
+          id: block.id,
+          nome: block.nome,
+          cor: block.cor,
+          area_m2: block.area_m2,
+          area_acres: block.area_acres
+        },
+        geometry: {
+          type: 'Polygon',
+          coordinates: [coordinates]
+        }
+      };
+    });
 
     const geoJSON = {
       type: 'FeatureCollection',
