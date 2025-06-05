@@ -1,0 +1,92 @@
+
+{
+  "app": {
+    "title": "YOTE Farmview",
+    "subtitle": "Advanced Agricultural Management"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "farms": "Farms",
+    "mapEditor": "Map Editor",
+    "applications": "Applications",
+    "settings": "Settings"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "totalAcres": "Total Acres Planted",
+    "activeBlocks": "Active Blocks",
+    "lastHarvest": "Last Harvest",
+    "nextApplication": "Next Application",
+    "productsApplied": "Products Applied (Last 30 Days)",
+    "caneDistribution": "Sugarcane Type Distribution",
+    "blocksTable": "Farm Blocks",
+    "blockName": "Block Name",
+    "area": "Area",
+    "productApplied": "Product Applied",
+    "plantingDate": "Planting Date",
+    "lastHarvest": "Last Harvest",
+    "nextHarvest": "Next Harvest",
+    "blockColor": "Block Color"
+  },
+  "farms": {
+    "title": "Farms",
+    "newFarm": "New Farm",
+    "farmName": "Farm Name",
+    "location": "Location",
+    "totalArea": "Total Area (acres)",
+    "caneType": "Sugarcane Type",
+    "save": "Save",
+    "edit": "Edit",
+    "view": "View",
+    "farmDetails": "Farm Details",
+    "blocks": "Blocks"
+  },
+  "mapEditor": {
+    "title": "Map Editor",
+    "drawPolygon": "Draw Polygon",
+    "removeBackground": "Remove Background",
+    "blockForm": "Block Information",
+    "blockName": "Block Name",
+    "color": "Color",
+    "plantingDate": "Planting Date",
+    "lastApplication": "Last Application",
+    "productApplied": "Product Applied",
+    "nextApplication": "Next Application",
+    "nextHarvest": "Next Harvest",
+    "caneType": "Sugarcane Type",
+    "hasDrain": "Has Drain?",
+    "area": "Area",
+    "perimeter": "Perimeter",
+    "save": "Save Block"
+  },
+  "applications": {
+    "title": "Applications",
+    "newApplication": "New Application",
+    "product": "Product",
+    "quantity": "Quantity (liters)",
+    "value": "Value (R$)",
+    "targetBlock": "Target Block",
+    "applicationDate": "Application Date",
+    "nextApplication": "Next Application",
+    "save": "Save",
+    "history": "Application History"
+  },
+  "common": {
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "view": "View",
+    "back": "Back",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "yes": "Yes",
+    "no": "No",
+    "acres": "acres",
+    "meters": "meters",
+    "liters": "liters"
+  }
+}

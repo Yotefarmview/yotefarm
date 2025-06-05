@@ -1,0 +1,92 @@
+
+{
+  "app": {
+    "title": "YOTE Farmview",
+    "subtitle": "Gestão Agrícola Avançada"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "farms": "Fazendas",
+    "mapEditor": "Editor de Mapas",
+    "applications": "Aplicações",
+    "settings": "Configurações"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "totalAcres": "Total de Acres Plantados",
+    "activeBlocks": "Blocos Ativos",
+    "lastHarvest": "Última Colheita",
+    "nextApplication": "Próxima Aplicação",
+    "productsApplied": "Produtos Aplicados (Últimos 30 Dias)",
+    "caneDistribution": "Distribuição de Tipos de Cana",
+    "blocksTable": "Blocos da Fazenda",
+    "blockName": "Nome do Bloco",
+    "area": "Área",
+    "productApplied": "Produto Aplicado",
+    "plantingDate": "Data do Plantio",
+    "lastHarvest": "Última Colheita",
+    "nextHarvest": "Próxima Colheita",
+    "blockColor": "Cor do Bloco"
+  },
+  "farms": {
+    "title": "Fazendas",
+    "newFarm": "Nova Fazenda",
+    "farmName": "Nome da Fazenda",
+    "location": "Localização",
+    "totalArea": "Área Total (acres)",
+    "caneType": "Tipo de Cana",
+    "save": "Salvar",
+    "edit": "Editar",
+    "view": "Visualizar",
+    "farmDetails": "Detalhes da Fazenda",
+    "blocks": "Blocos"
+  },
+  "mapEditor": {
+    "title": "Editor de Mapas",
+    "drawPolygon": "Desenhar Polígono",
+    "removeBackground": "Remover Fundo",
+    "blockForm": "Informações do Bloco",
+    "blockName": "Nome do Bloco",
+    "color": "Cor",
+    "plantingDate": "Data do Plantio",
+    "lastApplication": "Última Aplicação",
+    "productApplied": "Produto Aplicado",
+    "nextApplication": "Próxima Aplicação",
+    "nextHarvest": "Próxima Colheita",
+    "caneType": "Tipo de Cana",
+    "hasDrain": "Possui Dreno?",
+    "area": "Área",
+    "perimeter": "Perímetro",
+    "save": "Salvar Bloco"
+  },
+  "applications": {
+    "title": "Aplicações",
+    "newApplication": "Nova Aplicação",
+    "product": "Produto",
+    "quantity": "Quantidade (litros)",
+    "value": "Valor (R$)",
+    "targetBlock": "Bloco Alvo",
+    "applicationDate": "Data da Aplicação",
+    "nextApplication": "Próxima Aplicação",
+    "save": "Salvar",
+    "history": "Histórico de Aplicações"
+  },
+  "common": {
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "view": "Visualizar",
+    "back": "Voltar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "export": "Exportar",
+    "import": "Importar",
+    "yes": "Sim",
+    "no": "Não",
+    "acres": "acres",
+    "meters": "metros",
+    "liters": "litros"
+  }
+}
