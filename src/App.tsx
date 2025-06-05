@@ -8,6 +8,7 @@ import Layout from "./components/layout/Layout";
 import Dashboard from "./pages/Dashboard";
 import Farms from "./pages/Farms";
 import MapEditor from "./pages/MapEditor";
+import AdvancedMapEditor from "./pages/AdvancedMapEditor";
 import Applications from "./pages/Applications";
 import NotFound from "./pages/NotFound";
 
@@ -24,6 +25,7 @@ const App = () => (
             <Route path="/" element={<Dashboard />} />
             <Route path="/farms" element={<Farms />} />
             <Route path="/map-editor" element={<MapEditor />} />
+            <Route path="/advanced-map-editor" element={<AdvancedMapEditor />} />
             <Route path="/applications" element={<Applications />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

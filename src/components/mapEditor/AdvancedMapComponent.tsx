@@ -362,7 +362,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         fromLonLat([boundingBox[2], boundingBox[0]]),
         fromLonLat([boundingBox[3], boundingBox[1]])
       ];
-      view.fit(extent.boundingExtent(extent_coords), { 
+      view.fit(boundingExtent(extent_coords), { 
         padding: [50, 50, 50, 50],
         duration: 1000 
       });
