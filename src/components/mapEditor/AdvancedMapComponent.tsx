@@ -25,7 +25,9 @@ import 'ol/ol.css';
 interface BlockData {
   id?: string;
   name: string;
+  nome?: string;
   color: string;
+  cor?: string;
   transparency: number;
   area_m2: number;
   area_acres: number;
@@ -154,7 +156,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         
         // Update in parent component
         onBlockUpdate(editingBlock.id, {
+          name: editForm.name,
           nome: editForm.name,
+          color: editForm.color,
           cor: editForm.color
         });
       }
