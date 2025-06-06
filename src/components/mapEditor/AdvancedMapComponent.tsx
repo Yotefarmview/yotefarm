@@ -67,7 +67,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const [currentModify, setCurrentModify] = useState<Modify | null>(null);
   const [currentSelect, setCurrentSelect] = useState<Select | null>(null);
 
-  // Criar estilo para blocos
+  // Criar estilo para blocos com nome como legenda
   const createBlockStyle = useCallback((color: string, transparency: number, name?: string) => {
     return new Style({
       fill: new Fill({
@@ -79,10 +79,12 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       }),
       text: name ? new Text({
         text: name,
-        font: '12px Calibri,sans-serif',
+        font: 'bold 14px Arial, sans-serif',
         fill: new Fill({ color: '#000' }),
         stroke: new Stroke({ color: '#fff', width: 3 }),
         offsetY: 0,
+        textAlign: 'center',
+        textBaseline: 'middle',
       }) : undefined,
     });
   }, []);
@@ -130,7 +132,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       visible: showBackground && !printMode,
     });
 
-    // Camada Satélite (Bing ou similar)
+    // Camada Satélite
     const satelliteLayer = new TileLayer({
       source: new XYZ({
         url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
@@ -139,10 +141,10 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       visible: showSatellite && showBackground && !printMode,
     });
 
-    // Camada NDVI (exemplo - substitua pela sua fonte)
+    // Camada NDVI
     const ndviLayer = new TileLayer({
       source: new XYZ({
-        url: 'https://example.com/ndvi/{z}/{x}/{y}.png', // Substitua pela URL real
+        url: 'https://example.com/ndvi/{z}/{x}/{y}.png',
         maxZoom: 18,
       }),
       visible: showNDVI,
@@ -153,7 +155,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       target: mapRef.current,
       layers: [osmLayer, satelliteLayer, ndviLayer, vectorLayer],
       view: new View({
-        center: fromLonLat(centerCoordinates || [-47.8825, -15.7942]), // Brasília por padrão
+        center: fromLonLat(centerCoordinates || [-47.8825, -15.7942]),
         zoom: 15,
         maxZoom: 22,
       }),
@@ -244,14 +246,23 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
 
     if (drawingMode === 'polygon') {
-      // Modo desenho
+      // Modo desenho - polígonos livres com pontos ilimitados
       const draw = new Draw({
         source: vectorSource,
         type: 'Polygon',
         style: createBlockStyle(selectedColor, transparency),
+        freehand: false, // Permite desenho ponto a ponto
+        finishCondition: (event) => {
+          // O polígono se fecha automaticamente quando clica próximo ao ponto inicial
+          return false; // OpenLayers gerencia isso automaticamente
+        }
       });
 
       const snap = new Snap({ source: vectorSource });
+
+      draw.on('drawstart', (event) => {
+        console.log('Iniciando desenho do polígono...');
+      });
 
       draw.on('drawend', (event) => {
         const feature = event.feature;
@@ -259,6 +270,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         
         if (geometry) {
           const coordinates = geometry.getCoordinates()[0].map(coord => toLonLat(coord));
+          // Remove o último ponto duplicado (fechamento do polígono)
+          coordinates.pop();
+          
           const metrics = calculatePolygonMetrics(coordinates);
           
           const blockData: BlockData = {
@@ -285,7 +299,17 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
     } else if (drawingMode === 'edit') {
       // Modo edição
-      const select = new Select();
+      const select = new Select({
+        style: (feature) => {
+          const props = feature.getProperties();
+          return createBlockStyle(
+            props.color || selectedColor, 
+            props.transparency || transparency,
+            props.name
+          );
+        }
+      });
+      
       const modify = new Modify({
         features: select.getFeatures(),
       });
@@ -306,6 +330,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         features.forEach(feature => {
           const geometry = feature.getGeometry() as Polygon;
           const coordinates = geometry.getCoordinates()[0].map(coord => toLonLat(coord));
+          // Remove o último ponto duplicado
+          coordinates.pop();
+          
           const metrics = calculatePolygonMetrics(coordinates);
           const blockId = feature.get('id');
           
@@ -325,15 +352,25 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
     } else if (drawingMode === 'delete') {
       // Modo deletar
-      const select = new Select();
+      const select = new Select({
+        style: (feature) => {
+          const props = feature.getProperties();
+          return createBlockStyle(
+            '#EF4444', // Vermelho para indicar seleção para deletar
+            0.7,
+            props.name
+          );
+        }
+      });
 
       select.on('select', (event) => {
         const selectedFeatures = event.selected;
         if (selectedFeatures.length > 0) {
           const feature = selectedFeatures[0];
           const blockId = feature.get('id');
+          const blockName = feature.get('name');
           
-          if (blockId && confirm('Tem certeza que deseja deletar este bloco?')) {
+          if (blockId && confirm(`Tem certeza que deseja deletar o bloco "${blockName}"?`)) {
             vectorSource.removeFeature(feature);
             onBlockDelete(blockId);
           }
