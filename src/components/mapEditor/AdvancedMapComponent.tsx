@@ -252,10 +252,6 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         type: 'Polygon',
         style: createBlockStyle(selectedColor, transparency),
         freehand: false, // Permite desenho ponto a ponto
-        finishCondition: (event) => {
-          // O polígono se fecha automaticamente quando clica próximo ao ponto inicial
-          return false; // OpenLayers gerencia isso automaticamente
-        }
       });
 
       const snap = new Snap({ source: vectorSource });
@@ -293,9 +289,24 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }
       });
 
+      // Adicionar listener para duplo clique no mapa para finalizar desenho
+      const handleDoubleClick = (event: any) => {
+        if (draw.getActive()) {
+          // Finalizar o desenho atual
+          draw.finishDrawing();
+        }
+      };
+
+      map.on('dblclick', handleDoubleClick);
+
       map.addInteraction(draw);
       map.addInteraction(snap);
       setCurrentDraw(draw);
+
+      // Cleanup para remover o listener quando sair do modo desenho
+      return () => {
+        map.un('dblclick', handleDoubleClick);
+      };
 
     } else if (drawingMode === 'edit') {
       // Modo edição
