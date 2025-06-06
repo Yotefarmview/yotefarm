@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Map, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
@@ -15,6 +14,12 @@ import { fromLonLat, toLonLat } from 'ol/proj';
 import { boundingExtent } from 'ol/extent';
 import * as turf from '@turf/turf';
 import GeoJSON from 'ol/format/GeoJSON';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select as UISelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Save, X } from 'lucide-react';
 import 'ol/ol.css';
 
 interface BlockData {
@@ -66,6 +71,21 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const [currentDraw, setCurrentDraw] = useState<Draw | null>(null);
   const [currentModify, setCurrentModify] = useState<Modify | null>(null);
   const [currentSelect, setCurrentSelect] = useState<Select | null>(null);
+  const [editingBlock, setEditingBlock] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ name: '', color: '#10B981' });
+
+  // Color options for blocks
+  const colorOptions = [
+    { value: '#10B981', label: 'Verde', name: 'Plantado' },
+    { value: '#F59E0B', label: 'Amarelo', name: 'Maduro' },
+    { value: '#EF4444', label: 'Vermelho', name: 'Problemas' },
+    { value: '#F97316', label: 'Laranja', name: 'Colhendo' },
+    { value: '#8B5CF6', label: 'Roxo', name: 'Aplicação' },
+    { value: '#FFFFFF', label: 'Branco', name: 'Vazio' },
+    { value: '#3B82F6', label: 'Azul', name: 'Irrigação' },
+    { value: '#EC4899', label: 'Rosa', name: 'Teste' },
+    { value: '#06B6D4', label: 'Turquesa', name: 'Dreno' }
+  ];
 
   // Criar estilo para blocos com nome como legenda
   const createBlockStyle = useCallback((color: string, transparency: number, name?: string) => {
@@ -106,6 +126,48 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       console.error('Erro no cálculo de métricas:', error);
       return { area_m2: 0, area_acres: 0, perimeter: 0 };
     }
+  }, []);
+
+  // Function to update block style
+  const updateBlockStyle = useCallback((feature: Feature, name: string, color: string) => {
+    feature.setStyle(createBlockStyle(color, transparency, name));
+    feature.setProperties({
+      ...feature.getProperties(),
+      name: name,
+      color: color
+    });
+  }, [createBlockStyle, transparency]);
+
+  // Handle save edit
+  const handleSaveEdit = useCallback(() => {
+    if (!editingBlock) return;
+
+    const vectorLayer = mapInstance.current?.getLayers().item(3) as VectorLayer<VectorSource>;
+    const vectorSource = vectorLayer?.getSource();
+    
+    if (vectorSource) {
+      const features = vectorSource.getFeatures();
+      const feature = features.find(f => f.get('id') === editingBlock.id);
+      
+      if (feature) {
+        updateBlockStyle(feature, editForm.name, editForm.color);
+        
+        // Update in parent component
+        onBlockUpdate(editingBlock.id, {
+          nome: editForm.name,
+          cor: editForm.color
+        });
+      }
+    }
+
+    setEditingBlock(null);
+    setEditForm({ name: '', color: '#10B981' });
+  }, [editingBlock, editForm, onBlockUpdate, updateBlockStyle]);
+
+  // Handle cancel edit
+  const handleCancelEdit = useCallback(() => {
+    setEditingBlock(null);
+    setEditForm({ name: '', color: '#10B981' });
   }, []);
 
   // Inicializar mapa
@@ -167,9 +229,14 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     blocks.forEach(block => {
       if (block.coordenadas) {
         try {
-          const coordinates = Array.isArray(block.coordenadas) 
-            ? block.coordenadas 
-            : JSON.parse(block.coordenadas);
+          let coordinates;
+          if (typeof block.coordenadas === 'string') {
+            coordinates = JSON.parse(block.coordenadas);
+          } else if (Array.isArray(block.coordenadas)) {
+            coordinates = block.coordenadas;
+          } else {
+            coordinates = [];
+          }
           
           const polygon = new Polygon([coordinates.map((coord: number[]) => fromLonLat(coord))]);
           const feature = new Feature({
@@ -191,7 +258,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     return () => {
       map.setTarget(undefined);
     };
-  }, [blocks, centerCoordinates]);
+  }, [blocks, centerCoordinates, createBlockStyle, selectedColor, transparency, showBackground, printMode, showSatellite, showNDVI]);
 
   // Atualizar visibilidade das camadas
   useEffect(() => {
@@ -331,6 +398,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           const feature = selectedFeatures[0];
           const blockData = feature.get('blockData');
           if (blockData) {
+            setEditingBlock(blockData);
+            setEditForm({
+              name: blockData.nome || feature.get('name') || '',
+              color: blockData.cor || feature.get('color') || '#10B981'
+            });
             onBlockSelect(blockData);
           }
         }
@@ -418,14 +490,85 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   }, [centerCoordinates, boundingBox]);
 
   return (
-    <div
-      ref={mapRef}
-      className="w-full h-full border border-gray-300 rounded-lg"
-      style={{ 
-        minHeight: '500px',
-        backgroundColor: printMode ? 'white' : 'transparent' 
-      }}
-    />
+    <div className="relative">
+      <div
+        ref={mapRef}
+        className="w-full h-full border border-gray-300 rounded-lg"
+        style={{ 
+          minHeight: '500px',
+          backgroundColor: printMode ? 'white' : 'transparent' 
+        }}
+      />
+      
+      {/* Edit Form Modal */}
+      {editingBlock && (
+        <div className="absolute top-4 left-4 z-50">
+          <Card className="w-80 bg-white shadow-lg border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Editar Bloco</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="edit-name">Nome do Bloco</Label>
+                <Input
+                  id="edit-name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                  placeholder="Digite o nome do bloco"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="edit-color">Cor do Bloco</Label>
+                <UISelect 
+                  value={editForm.color} 
+                  onValueChange={(value) => setEditForm({...editForm, color: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border shadow-lg">
+                    {colorOptions.map((color) => (
+                      <SelectItem key={color.value} value={color.value}>
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="w-4 h-4 rounded-full border border-gray-300"
+                            style={{ backgroundColor: color.value }}
+                          />
+                          <div>
+                            <span className="font-medium">{color.label}</span>
+                            <span className="text-xs text-gray-500 ml-2">{color.name}</span>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </UISelect>
+              </div>
+              
+              <div className="flex gap-2 pt-2">
+                <Button 
+                  onClick={handleSaveEdit}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  size="sm"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Salvar
+                </Button>
+                <Button 
+                  onClick={handleCancelEdit}
+                  variant="outline"
+                  size="sm"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Cancelar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
   );
 };
 
