@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Map, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
@@ -70,19 +71,13 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Map | null>(null);
+  const vectorSource = useRef<VectorSource | null>(null);
   const [currentDraw, setCurrentDraw] = useState<Draw | null>(null);
   const [currentModify, setCurrentModify] = useState<Modify | null>(null);
   const [currentSelect, setCurrentSelect] = useState<Select | null>(null);
   const [editingBlock, setEditingBlock] = useState<any>(null);
   const [editForm, setEditForm] = useState({ name: '', color: '#10B981' });
-  const [mapLoaded, setMapLoaded] = useState(false);
-
-  console.log('AdvancedMapComponent renderizando', { 
-    blocks, 
-    centerCoordinates, 
-    mapRefCurrent: !!mapRef.current,
-    mapInstance: !!mapInstance.current
-  });
+  const [mapReady, setMapReady] = useState(false);
 
   // Color options for blocks
   const colorOptions = [
@@ -150,26 +145,21 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
   // Handle save edit
   const handleSaveEdit = useCallback(() => {
-    if (!editingBlock) return;
+    if (!editingBlock || !vectorSource.current) return;
 
-    const vectorLayer = mapInstance.current?.getLayers().item(3) as VectorLayer<VectorSource>;
-    const vectorSource = vectorLayer?.getSource();
+    const features = vectorSource.current.getFeatures();
+    const feature = features.find(f => f.get('id') === editingBlock.id);
     
-    if (vectorSource) {
-      const features = vectorSource.getFeatures();
-      const feature = features.find(f => f.get('id') === editingBlock.id);
+    if (feature) {
+      updateBlockStyle(feature, editForm.name, editForm.color);
       
-      if (feature) {
-        updateBlockStyle(feature, editForm.name, editForm.color);
-        
-        // Update in parent component
-        onBlockUpdate(editingBlock.id, {
-          name: editForm.name,
-          nome: editForm.name,
-          color: editForm.color,
-          cor: editForm.color
-        });
-      }
+      // Update in parent component
+      onBlockUpdate(editingBlock.id, {
+        name: editForm.name,
+        nome: editForm.name,
+        color: editForm.color,
+        cor: editForm.color
+      });
     }
 
     setEditingBlock(null);
@@ -182,23 +172,19 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     setEditForm({ name: '', color: '#10B981' });
   }, []);
 
-  // Inicializar mapa
+  // Inicializar mapa - uma única vez
   useEffect(() => {
-    console.log('Inicializando mapa useEffect', { mapRefCurrent: !!mapRef.current });
-    
-    if (!mapRef.current) {
-      console.log('mapRef.current não existe ainda');
-      return;
-    }
+    if (!mapRef.current || mapInstance.current) return;
 
-    console.log('Criando instância do mapa...');
+    console.log('Inicializando mapa pela primeira vez...');
 
     try {
-      const vectorSource = new VectorSource();
-      console.log('VectorSource criado');
+      // Criar VectorSource
+      const newVectorSource = new VectorSource();
+      vectorSource.current = newVectorSource;
       
       const vectorLayer = new VectorLayer({
-        source: vectorSource,
+        source: newVectorSource,
         style: (feature) => {
           const props = feature.getProperties();
           return createBlockStyle(
@@ -208,16 +194,13 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           );
         },
       });
-      console.log('VectorLayer criado');
 
-      // Camada OSM
+      // Camadas de fundo
       const osmLayer = new TileLayer({
         source: new OSM(),
-        visible: showBackground && !printMode,
+        visible: showBackground && !showSatellite && !printMode,
       });
-      console.log('OSM Layer criado');
 
-      // Camada Satélite
       const satelliteLayer = new TileLayer({
         source: new XYZ({
           url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
@@ -225,9 +208,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }),
         visible: showSatellite && showBackground && !printMode,
       });
-      console.log('Satellite Layer criado');
 
-      // Camada NDVI
       const ndviLayer = new TileLayer({
         source: new XYZ({
           url: 'https://example.com/ndvi/{z}/{x}/{y}.png',
@@ -236,70 +217,82 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         visible: showNDVI,
         opacity: 0.7,
       });
-      console.log('NDVI Layer criado');
 
+      // Usar coordenadas default para Brasil se não tiver centerCoordinates
+      const defaultCenter = centerCoordinates || [-47.8825, -15.7942];
+      
       const map = new Map({
         target: mapRef.current,
         layers: [osmLayer, satelliteLayer, ndviLayer, vectorLayer],
         view: new View({
-          center: fromLonLat(centerCoordinates || [-47.8825, -15.7942]),
-          zoom: 15,
+          center: fromLonLat(defaultCenter),
+          zoom: 10,
           maxZoom: 22,
         }),
       });
-      console.log('Mapa criado com sucesso');
 
       mapInstance.current = map;
-      setMapLoaded(true);
 
-      // Aguardar o mapa carregar
-      map.on('rendercomplete', () => {
-        console.log('Mapa renderizado completamente');
+      // Aguardar renderização completa
+      map.once('rendercomplete', () => {
+        console.log('Mapa renderizado com sucesso');
+        setMapReady(true);
       });
 
-      // Carregar blocos existentes
-      console.log('Carregando blocos existentes:', blocks.length);
-      blocks.forEach(block => {
-        if (block.coordenadas) {
-          try {
-            let coordinates;
-            if (typeof block.coordenadas === 'string') {
-              coordinates = JSON.parse(block.coordenadas);
-            } else if (Array.isArray(block.coordenadas)) {
-              coordinates = block.coordenadas;
-            } else {
-              coordinates = [];
-            }
-            
-            const polygon = new Polygon([coordinates.map((coord: number[]) => fromLonLat(coord))]);
-            const feature = new Feature({
-              geometry: polygon,
-              id: block.id,
-              name: block.nome,
-              color: block.cor,
-              transparency: block.transparencia || 0.4,
-              blockData: block
-            });
-            
-            vectorSource.addFeature(feature);
-            console.log('Bloco carregado:', block.id);
-          } catch (error) {
-            console.error('Erro ao carregar bloco:', error);
-          }
-        }
-      });
-
-      console.log('Mapa inicializado com sucesso');
+      console.log('Mapa criado com sucesso');
 
       return () => {
-        console.log('Limpando mapa');
-        map.setTarget(undefined);
-        setMapLoaded(false);
+        if (mapInstance.current) {
+          mapInstance.current.setTarget(undefined);
+          mapInstance.current = null;
+        }
+        vectorSource.current = null;
+        setMapReady(false);
       };
     } catch (error) {
       console.error('Erro ao inicializar mapa:', error);
     }
-  }, [blocks, centerCoordinates, createBlockStyle, selectedColor, transparency, showBackground, printMode, showSatellite, showNDVI]);
+  }, []); // Dependências vazias para executar apenas uma vez
+
+  // Carregar blocos existentes
+  useEffect(() => {
+    if (!vectorSource.current || !mapReady) return;
+
+    console.log('Carregando blocos:', blocks.length);
+
+    // Limpar blocos existentes
+    vectorSource.current.clear();
+
+    // Carregar novos blocos
+    blocks.forEach(block => {
+      if (block.coordenadas) {
+        try {
+          let coordinates;
+          if (typeof block.coordenadas === 'string') {
+            coordinates = JSON.parse(block.coordenadas);
+          } else if (Array.isArray(block.coordenadas)) {
+            coordinates = block.coordenadas;
+          } else {
+            coordinates = [];
+          }
+          
+          const polygon = new Polygon([coordinates.map((coord: number[]) => fromLonLat(coord))]);
+          const feature = new Feature({
+            geometry: polygon,
+            id: block.id,
+            name: block.nome,
+            color: block.cor,
+            transparency: block.transparencia || 0.4,
+            blockData: block
+          });
+          
+          vectorSource.current!.addFeature(feature);
+        } catch (error) {
+          console.error('Erro ao carregar bloco:', error);
+        }
+      }
+    });
+  }, [blocks, mapReady]);
 
   // Atualizar visibilidade das camadas
   useEffect(() => {
@@ -333,11 +326,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
   // Gerenciar interações baseadas no modo de desenho
   useEffect(() => {
-    if (!mapInstance.current) return;
+    if (!mapInstance.current || !vectorSource.current) return;
 
     const map = mapInstance.current;
-    const vectorLayer = map.getLayers().item(3) as VectorLayer<VectorSource>;
-    const vectorSource = vectorLayer.getSource()!;
 
     // Remover interações existentes
     if (currentDraw) {
@@ -356,17 +347,13 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     if (drawingMode === 'polygon') {
       // Modo desenho - polígonos livres com pontos ilimitados
       const draw = new Draw({
-        source: vectorSource,
+        source: vectorSource.current,
         type: 'Polygon',
         style: createBlockStyle(selectedColor, transparency),
-        freehand: false, // Permite desenho ponto a ponto
+        freehand: false,
       });
 
-      const snap = new Snap({ source: vectorSource });
-
-      draw.on('drawstart', (event) => {
-        console.log('Iniciando desenho do polígono...');
-      });
+      const snap = new Snap({ source: vectorSource.current });
 
       draw.on('drawend', (event) => {
         const feature = event.feature;
@@ -374,8 +361,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         
         if (geometry) {
           const coordinates = geometry.getCoordinates()[0].map(coord => toLonLat(coord));
-          // Remove o último ponto duplicado (fechamento do polígono)
-          coordinates.pop();
+          coordinates.pop(); // Remove o último ponto duplicado
           
           const metrics = calculatePolygonMetrics(coordinates);
           
@@ -397,24 +383,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }
       });
 
-      // Adicionar listener para duplo clique no mapa para finalizar desenho
-      const handleDoubleClick = (event: any) => {
-        if (draw.getActive()) {
-          // Finalizar o desenho atual
-          draw.finishDrawing();
-        }
-      };
-
-      map.on('dblclick', handleDoubleClick);
-
       map.addInteraction(draw);
       map.addInteraction(snap);
       setCurrentDraw(draw);
-
-      // Cleanup para remover o listener quando sair do modo desenho
-      return () => {
-        map.un('dblclick', handleDoubleClick);
-      };
 
     } else if (drawingMode === 'edit') {
       // Modo edição
@@ -454,8 +425,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         features.forEach(feature => {
           const geometry = feature.getGeometry() as Polygon;
           const coordinates = geometry.getCoordinates()[0].map(coord => toLonLat(coord));
-          // Remove o último ponto duplicado
-          coordinates.pop();
+          coordinates.pop(); // Remove o último ponto duplicado
           
           const metrics = calculatePolygonMetrics(coordinates);
           const blockId = feature.get('id');
@@ -495,7 +465,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           const blockName = feature.get('name');
           
           if (blockId && confirm(`Tem certeza que deseja deletar o bloco "${blockName}"?`)) {
-            vectorSource.removeFeature(feature);
+            vectorSource.current!.removeFeature(feature);
             onBlockDelete(blockId);
           }
         }
@@ -531,8 +501,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   }, [centerCoordinates, boundingBox]);
 
   return (
-    <div className="relative">
-      {!mapLoaded && (
+    <div className="relative w-full h-full">
+      {!mapReady && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg z-10">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-2"></div>
