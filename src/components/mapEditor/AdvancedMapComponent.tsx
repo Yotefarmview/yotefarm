@@ -75,6 +75,14 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const [currentSelect, setCurrentSelect] = useState<Select | null>(null);
   const [editingBlock, setEditingBlock] = useState<any>(null);
   const [editForm, setEditForm] = useState({ name: '', color: '#10B981' });
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  console.log('AdvancedMapComponent renderizando', { 
+    blocks, 
+    centerCoordinates, 
+    mapRefCurrent: !!mapRef.current,
+    mapInstance: !!mapInstance.current
+  });
 
   // Color options for blocks
   const colorOptions = [
@@ -176,92 +184,121 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
   // Inicializar mapa
   useEffect(() => {
-    if (!mapRef.current) return;
-
-    const vectorSource = new VectorSource();
+    console.log('Inicializando mapa useEffect', { mapRefCurrent: !!mapRef.current });
     
-    const vectorLayer = new VectorLayer({
-      source: vectorSource,
-      style: (feature) => {
-        const props = feature.getProperties();
-        return createBlockStyle(
-          props.color || selectedColor, 
-          props.transparency || transparency,
-          props.name
-        );
-      },
-    });
+    if (!mapRef.current) {
+      console.log('mapRef.current não existe ainda');
+      return;
+    }
 
-    // Camada OSM
-    const osmLayer = new TileLayer({
-      source: new OSM(),
-      visible: showBackground && !printMode,
-    });
+    console.log('Criando instância do mapa...');
 
-    // Camada Satélite
-    const satelliteLayer = new TileLayer({
-      source: new XYZ({
-        url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-        maxZoom: 20,
-      }),
-      visible: showSatellite && showBackground && !printMode,
-    });
+    try {
+      const vectorSource = new VectorSource();
+      console.log('VectorSource criado');
+      
+      const vectorLayer = new VectorLayer({
+        source: vectorSource,
+        style: (feature) => {
+          const props = feature.getProperties();
+          return createBlockStyle(
+            props.color || selectedColor, 
+            props.transparency || transparency,
+            props.name
+          );
+        },
+      });
+      console.log('VectorLayer criado');
 
-    // Camada NDVI
-    const ndviLayer = new TileLayer({
-      source: new XYZ({
-        url: 'https://example.com/ndvi/{z}/{x}/{y}.png',
-        maxZoom: 18,
-      }),
-      visible: showNDVI,
-      opacity: 0.7,
-    });
+      // Camada OSM
+      const osmLayer = new TileLayer({
+        source: new OSM(),
+        visible: showBackground && !printMode,
+      });
+      console.log('OSM Layer criado');
 
-    const map = new Map({
-      target: mapRef.current,
-      layers: [osmLayer, satelliteLayer, ndviLayer, vectorLayer],
-      view: new View({
-        center: fromLonLat(centerCoordinates || [-47.8825, -15.7942]),
-        zoom: 15,
-        maxZoom: 22,
-      }),
-    });
+      // Camada Satélite
+      const satelliteLayer = new TileLayer({
+        source: new XYZ({
+          url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+          maxZoom: 20,
+        }),
+        visible: showSatellite && showBackground && !printMode,
+      });
+      console.log('Satellite Layer criado');
 
-    mapInstance.current = map;
+      // Camada NDVI
+      const ndviLayer = new TileLayer({
+        source: new XYZ({
+          url: 'https://example.com/ndvi/{z}/{x}/{y}.png',
+          maxZoom: 18,
+        }),
+        visible: showNDVI,
+        opacity: 0.7,
+      });
+      console.log('NDVI Layer criado');
 
-    // Carregar blocos existentes
-    blocks.forEach(block => {
-      if (block.coordenadas) {
-        try {
-          let coordinates;
-          if (typeof block.coordenadas === 'string') {
-            coordinates = JSON.parse(block.coordenadas);
-          } else if (Array.isArray(block.coordenadas)) {
-            coordinates = block.coordenadas;
-          } else {
-            coordinates = [];
+      const map = new Map({
+        target: mapRef.current,
+        layers: [osmLayer, satelliteLayer, ndviLayer, vectorLayer],
+        view: new View({
+          center: fromLonLat(centerCoordinates || [-47.8825, -15.7942]),
+          zoom: 15,
+          maxZoom: 22,
+        }),
+      });
+      console.log('Mapa criado com sucesso');
+
+      mapInstance.current = map;
+      setMapLoaded(true);
+
+      // Aguardar o mapa carregar
+      map.on('rendercomplete', () => {
+        console.log('Mapa renderizado completamente');
+      });
+
+      // Carregar blocos existentes
+      console.log('Carregando blocos existentes:', blocks.length);
+      blocks.forEach(block => {
+        if (block.coordenadas) {
+          try {
+            let coordinates;
+            if (typeof block.coordenadas === 'string') {
+              coordinates = JSON.parse(block.coordenadas);
+            } else if (Array.isArray(block.coordenadas)) {
+              coordinates = block.coordenadas;
+            } else {
+              coordinates = [];
+            }
+            
+            const polygon = new Polygon([coordinates.map((coord: number[]) => fromLonLat(coord))]);
+            const feature = new Feature({
+              geometry: polygon,
+              id: block.id,
+              name: block.nome,
+              color: block.cor,
+              transparency: block.transparencia || 0.4,
+              blockData: block
+            });
+            
+            vectorSource.addFeature(feature);
+            console.log('Bloco carregado:', block.id);
+          } catch (error) {
+            console.error('Erro ao carregar bloco:', error);
           }
-          
-          const polygon = new Polygon([coordinates.map((coord: number[]) => fromLonLat(coord))]);
-          const feature = new Feature({
-            geometry: polygon,
-            id: block.id,
-            name: block.nome,
-            color: block.cor,
-            transparency: block.transparencia || 0.4,
-            blockData: block
-          });
-          
-          vectorSource.addFeature(feature);
-        } catch (error) {
-          console.error('Erro ao carregar bloco:', error);
         }
-      }
-    });
+      });
 
-    return () => {
-      map.setTarget(undefined);
-    };
+      console.log('Mapa inicializado com sucesso');
+
+      return () => {
+        console.log('Limpando mapa');
+        map.setTarget(undefined);
+        setMapLoaded(false);
+      };
+    } catch (error) {
+      console.error('Erro ao inicializar mapa:', error);
+    }
   }, [blocks, centerCoordinates, createBlockStyle, selectedColor, transparency, showBackground, printMode, showSatellite, showNDVI]);
 
   // Atualizar visibilidade das camadas
@@ -495,6 +532,15 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
   return (
     <div className="relative">
+      {!mapLoaded && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg z-10">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-2"></div>
+            <p className="text-gray-600">Carregando mapa...</p>
+          </div>
+        </div>
+      )}
+      
       <div
         ref={mapRef}
         className="w-full h-full border border-gray-300 rounded-lg"
