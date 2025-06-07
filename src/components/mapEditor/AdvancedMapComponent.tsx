@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Map, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
@@ -19,7 +20,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select as UISelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Save, X, Edit2 } from 'lucide-react';
+import { Save, X, Edit2, Trash2 } from 'lucide-react';
 import 'ol/ol.css';
 
 interface BlockData {
@@ -77,7 +78,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const [editingBlock, setEditingBlock] = useState<any>(null);
   const [editForm, setEditForm] = useState({ name: '', color: '#10B981' });
   const [mapReady, setMapReady] = useState(false);
-  const [selectedBlockForEdit, setSelectedBlockForEdit] = useState<any>(null);
+  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
 
   // Color options for blocks
   const colorOptions = [
@@ -145,98 +146,155 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
   }, []);
 
-  // Function to update only the selected block style
-  const updateSelectedBlockStyle = useCallback((feature: Feature, name: string, color: string, area_acres?: number) => {
-    const isSelected = selectedBlockForEdit?.id === feature.get('id');
-    feature.setStyle(createBlockStyle(color, transparency, name, area_acres, isSelected));
-    feature.setProperties({
-      ...feature.getProperties(),
-      name: name,
-      color: color
-    });
-  }, [createBlockStyle, transparency, selectedBlockForEdit]);
-
-  // Handle save edit - only update the selected block
-  const handleSaveEdit = useCallback(() => {
-    if (!editingBlock || !vectorSource.current) return;
-
+  // Find feature by block ID
+  const findFeatureByBlockId = useCallback((blockId: string): Feature | null => {
+    if (!vectorSource.current) return null;
+    
     const features = vectorSource.current.getFeatures();
-    const feature = features.find(f => f.get('id') === editingBlock.id);
+    return features.find(f => f.get('blockId') === blockId) || null;
+  }, []);
+
+  // Update specific feature style and properties
+  const updateFeatureStyle = useCallback((feature: Feature, name: string, color: string, area_acres?: number, isSelected?: boolean) => {
+    const style = createBlockStyle(color, transparency, name, area_acres, isSelected);
+    feature.setStyle(style);
     
-    if (feature) {
-      // Update only this specific feature style
-      updateSelectedBlockStyle(feature, editForm.name, editForm.color, editingBlock.area_acres);
-      
-      // Update in parent component
-      onBlockUpdate(editingBlock.id, {
-        name: editForm.name,
-        nome: editForm.name,
-        color: editForm.color,
-        cor: editForm.color
-      });
+    // Update feature properties
+    feature.set('name', name);
+    feature.set('color', color);
+    feature.set('isSelected', isSelected);
+    
+    console.log(`Updated feature style - ID: ${feature.get('blockId')}, Name: ${name}, Color: ${color}, Selected: ${isSelected}`);
+  }, [createBlockStyle, transparency]);
 
-      // Force re-render by refreshing the vector layer
-      if (vectorSource.current) {
-        vectorSource.current.changed();
-      }
-    }
-
+  // Clear all selections
+  const clearAllSelections = useCallback(() => {
+    if (!vectorSource.current) return;
+    
+    vectorSource.current.getFeatures().forEach(feature => {
+      const blockData = feature.get('blockData');
+      updateFeatureStyle(
+        feature, 
+        blockData?.nome || feature.get('name') || '',
+        blockData?.cor || feature.get('color') || '#10B981',
+        blockData?.area_acres,
+        false
+      );
+    });
+    
+    setSelectedFeature(null);
     setEditingBlock(null);
     setEditForm({ name: '', color: '#10B981' });
-    setSelectedBlockForEdit(null);
-  }, [editingBlock, editForm, onBlockUpdate, updateSelectedBlockStyle]);
-
-  // Handle cancel edit
-  const handleCancelEdit = useCallback(() => {
-    // Reset styles for all features to remove selection highlighting
-    if (vectorSource.current) {
-      vectorSource.current.getFeatures().forEach(f => {
-        const props = f.getProperties();
-        const blockData = f.get('blockData');
-        f.setStyle(createBlockStyle(
-          props.color || selectedColor, 
-          props.transparency || transparency,
-          props.name,
-          blockData?.area_acres,
-          false // No selection
-        ));
-      });
-    }
-    
-    setEditingBlock(null);
-    setEditForm({ name: '', color: '#10B981' });
-    setSelectedBlockForEdit(null);
-  }, [createBlockStyle, selectedColor, transparency]);
+  }, [updateFeatureStyle]);
 
   // Handle block selection for editing
   const handleBlockClick = useCallback((feature: Feature) => {
+    console.log('Block clicked:', feature.get('blockId'));
+    
+    // Clear previous selections
+    clearAllSelections();
+    
     const blockData = feature.get('blockData');
-    if (blockData) {
-      setSelectedBlockForEdit(blockData);
+    const blockId = feature.get('blockId');
+    
+    if (blockData && blockId) {
+      // Set this feature as selected
+      setSelectedFeature(feature);
       setEditingBlock(blockData);
       setEditForm({
-        name: blockData.nome || feature.get('name') || '',
-        color: blockData.cor || feature.get('color') || '#10B981'
+        name: blockData.nome || '',
+        color: blockData.cor || '#10B981'
       });
-      onBlockSelect(blockData);
       
-      // Update only the clicked feature to show selection, reset others
-      if (vectorSource.current) {
-        vectorSource.current.getFeatures().forEach(f => {
-          const props = f.getProperties();
-          const blockProps = f.get('blockData');
-          const isSelected = f.get('id') === blockData.id;
-          f.setStyle(createBlockStyle(
-            props.color || selectedColor, 
-            props.transparency || transparency,
-            props.name,
-            blockProps?.area_acres,
-            isSelected
-          ));
-        });
-      }
+      // Update style to show selection
+      updateFeatureStyle(
+        feature,
+        blockData.nome || '',
+        blockData.cor || '#10B981',
+        blockData.area_acres,
+        true
+      );
+      
+      onBlockSelect(blockData);
+      console.log('Block selected for editing:', blockId, blockData.nome);
     }
-  }, [onBlockSelect, createBlockStyle, selectedColor, transparency]);
+  }, [clearAllSelections, updateFeatureStyle, onBlockSelect]);
+
+  // Handle save edit - only update the selected feature
+  const handleSaveEdit = useCallback(() => {
+    if (!editingBlock || !selectedFeature) {
+      console.log('No editing block or selected feature');
+      return;
+    }
+
+    const blockId = selectedFeature.get('blockId');
+    console.log('Saving edit for block:', blockId, editForm);
+    
+    // Update the selected feature's style and properties
+    updateFeatureStyle(
+      selectedFeature,
+      editForm.name,
+      editForm.color,
+      editingBlock.area_acres,
+      false // Remove selection after save
+    );
+    
+    // Update the blockData stored in the feature
+    const updatedBlockData = {
+      ...editingBlock,
+      nome: editForm.name,
+      cor: editForm.color
+    };
+    selectedFeature.set('blockData', updatedBlockData);
+    
+    // Update in parent component
+    onBlockUpdate(blockId, {
+      name: editForm.name,
+      nome: editForm.name,
+      color: editForm.color,
+      cor: editForm.color
+    });
+
+    // Force refresh of vector source
+    if (vectorSource.current) {
+      vectorSource.current.changed();
+    }
+
+    // Clear selection
+    setEditingBlock(null);
+    setEditForm({ name: '', color: '#10B981' });
+    setSelectedFeature(null);
+  }, [editingBlock, selectedFeature, editForm, onBlockUpdate, updateFeatureStyle]);
+
+  // Handle delete edit
+  const handleDeleteEdit = useCallback(() => {
+    if (!editingBlock || !selectedFeature) return;
+
+    const blockId = selectedFeature.get('blockId');
+    const blockName = editingBlock.nome || 'Bloco sem nome';
+    
+    if (confirm(`Tem certeza que deseja deletar o bloco "${blockName}"?`)) {
+      // Remove from vector source
+      if (vectorSource.current) {
+        vectorSource.current.removeFeature(selectedFeature);
+      }
+      
+      // Call parent delete function
+      onBlockDelete(blockId);
+      
+      // Clear selection
+      setEditingBlock(null);
+      setEditForm({ name: '', color: '#10B981' });
+      setSelectedFeature(null);
+      
+      console.log('Block deleted:', blockId);
+    }
+  }, [editingBlock, selectedFeature, onBlockDelete]);
+
+  // Handle cancel edit
+  const handleCancelEdit = useCallback(() => {
+    clearAllSelections();
+  }, [clearAllSelections]);
 
   // Inicializar mapa - uma única vez
   useEffect(() => {
@@ -252,13 +310,15 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       const vectorLayer = new VectorLayer({
         source: newVectorSource,
         style: (feature) => {
-          const props = feature.getProperties();
+          if (!(feature instanceof Feature)) return undefined;
+          
           const blockData = feature.get('blockData');
-          const isSelected = selectedBlockForEdit?.id === feature.get('id');
+          const isSelected = feature.get('isSelected') || false;
+          
           return createBlockStyle(
-            props.color || selectedColor, 
-            props.transparency || transparency,
-            props.name,
+            blockData?.cor || feature.get('color') || selectedColor,
+            transparency,
+            blockData?.nome || feature.get('name'),
             blockData?.area_acres,
             isSelected
           );
@@ -303,29 +363,15 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
       // Add click event for block selection
       map.on('click', (event) => {
-        const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => feature);
-        if (feature && feature instanceof Feature && feature.get('blockData')) {
+        const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => {
+          return feature instanceof Feature ? feature : null;
+        });
+        
+        if (feature && feature.get('blockData')) {
           handleBlockClick(feature);
         } else {
           // Clicked on empty area, clear selection
-          setSelectedBlockForEdit(null);
-          setEditingBlock(null);
-          setEditForm({ name: '', color: '#10B981' });
-          
-          // Update all features styles to remove selection
-          if (vectorSource.current) {
-            vectorSource.current.getFeatures().forEach(f => {
-              const props = f.getProperties();
-              const blockData = f.get('blockData');
-              f.setStyle(createBlockStyle(
-                props.color || selectedColor, 
-                props.transparency || transparency,
-                props.name,
-                blockData?.area_acres,
-                false
-              ));
-            });
-          }
+          clearAllSelections();
         }
       });
 
@@ -376,13 +422,18 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           
           const polygon = new Polygon([coordinates.map((coord: number[]) => fromLonLat(coord))]);
           const feature = new Feature({
-            geometry: polygon,
-            id: block.id,
-            name: block.nome,
-            color: block.cor,
-            transparency: block.transparencia || 0.4,
-            blockData: block
+            geometry: polygon
           });
+          
+          // Set unique properties for this feature
+          feature.set('blockId', block.id);
+          feature.set('name', block.nome);
+          feature.set('color', block.cor);
+          feature.set('transparency', block.transparencia || 0.4);
+          feature.set('blockData', block);
+          feature.set('isSelected', false);
+          
+          console.log('Adding block to map:', block.id, block.nome);
           
           vectorSource.current!.addFeature(feature);
         } catch (error) {
@@ -471,15 +522,16 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
             ...metrics
           };
 
-          feature.setProperties({
-            name: blockData.name,
-            color: blockData.color,
-            transparency: blockData.transparency,
-            blockData: blockData
-          });
+          // Set unique properties for this new feature
+          const uniqueId = `temp_${Date.now()}`;
+          feature.set('blockId', uniqueId);
+          feature.set('name', blockData.name);
+          feature.set('color', blockData.color);
+          feature.set('transparency', blockData.transparency);
+          feature.set('blockData', blockData);
+          feature.set('isSelected', false);
 
-          // Update style to show area in acres
-          feature.setStyle(createBlockStyle(selectedColor, transparency, blockData.name, blockData.area_acres));
+          console.log('New block drawn:', uniqueId, blockData.name);
 
           onPolygonDrawn(blockData);
         }
@@ -493,12 +545,12 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       // Modo edição
       const select = new Select({
         style: (feature) => {
-          const props = feature.getProperties();
+          if (!(feature instanceof Feature)) return undefined;
           const blockData = feature.get('blockData');
           return createBlockStyle(
-            props.color || selectedColor, 
-            props.transparency || transparency,
-            props.name,
+            blockData?.cor || feature.get('color') || selectedColor,
+            transparency,
+            blockData?.nome || feature.get('name'),
             blockData?.area_acres,
             true
           );
@@ -513,8 +565,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         const selectedFeatures = event.selected;
         if (selectedFeatures.length > 0) {
           const feature = selectedFeatures[0];
-          const blockData = feature.get('blockData');
-          if (feature instanceof Feature && blockData) {
+          if (feature instanceof Feature && feature.get('blockData')) {
             handleBlockClick(feature);
           }
         }
@@ -523,36 +574,39 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       modify.on('modifyend', (event) => {
         const features = event.features.getArray();
         features.forEach(feature => {
+          if (!(feature instanceof Feature)) return;
+          
           const geometry = feature.getGeometry() as Polygon;
           const coordinates = geometry.getCoordinates()[0].map(coord => toLonLat(coord));
           coordinates.pop(); // Remove o último ponto duplicado
           
           const metrics = calculatePolygonMetrics(coordinates);
-          const blockId = feature.get('id');
+          const blockId = feature.get('blockId');
           
           if (blockId) {
             // Update feature properties
-            feature.setProperties({
-              ...feature.getProperties(),
-              blockData: {
-                ...feature.get('blockData'),
-                ...metrics
-              }
-            });
+            const updatedBlockData = {
+              ...feature.get('blockData'),
+              ...metrics
+            };
+            feature.set('blockData', updatedBlockData);
 
             // Update style with new area
-            const props = feature.getProperties();
-            feature.setStyle(createBlockStyle(
-              props.color || selectedColor,
-              props.transparency || transparency,
-              props.name,
-              metrics.area_acres
-            ));
+            const blockData = feature.get('blockData');
+            updateFeatureStyle(
+              feature,
+              blockData?.nome || feature.get('name') || '',
+              blockData?.cor || feature.get('color') || selectedColor,
+              metrics.area_acres,
+              feature.get('isSelected') || false
+            );
 
             onBlockUpdate(blockId, {
               coordinates,
               ...metrics
             });
+            
+            console.log('Block modified:', blockId, metrics);
           }
         });
       });
@@ -566,12 +620,12 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       // Modo deletar
       const select = new Select({
         style: (feature) => {
-          const props = feature.getProperties();
+          if (!(feature instanceof Feature)) return undefined;
           const blockData = feature.get('blockData');
           return createBlockStyle(
             '#EF4444', // Vermelho para indicar seleção para deletar
             0.7,
-            props.name,
+            blockData?.nome || feature.get('name'),
             blockData?.area_acres
           );
         }
@@ -581,12 +635,15 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         const selectedFeatures = event.selected;
         if (selectedFeatures.length > 0) {
           const feature = selectedFeatures[0];
-          const blockId = feature.get('id');
+          if (!(feature instanceof Feature)) return;
+          
+          const blockId = feature.get('blockId');
           const blockName = feature.get('name');
           
           if (blockId && confirm(`Tem certeza que deseja deletar o bloco "${blockName}"?`)) {
             vectorSource.current!.removeFeature(feature);
             onBlockDelete(blockId);
+            console.log('Block deleted via delete mode:', blockId);
           }
         }
         select.getFeatures().clear();
@@ -595,7 +652,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       map.addInteraction(select);
       setCurrentSelect(select);
     }
-  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick]);
+  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, updateFeatureStyle]);
 
   // Centralizar mapa em coordenadas específicas
   useEffect(() => {
@@ -641,7 +698,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       />
       
       {/* Quick Edit Panel */}
-      {selectedBlockForEdit && (
+      {editingBlock && selectedFeature && (
         <div className="absolute top-4 right-4 z-50">
           <Card className="w-80 bg-white shadow-lg border">
             <CardHeader className="pb-3">
@@ -690,13 +747,17 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
               </div>
 
               {/* Display block metrics - only acres */}
-              {selectedBlockForEdit && (
+              {editingBlock && (
                 <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                   <h4 className="font-medium text-green-900 mb-2">Dados do Bloco</h4>
                   <div className="grid grid-cols-1 gap-2 text-sm">
                     <div>
+                      <span className="text-green-700">ID:</span>
+                      <p className="font-medium text-xs">{selectedFeature.get('blockId')}</p>
+                    </div>
+                    <div>
                       <span className="text-green-700">Área:</span>
-                      <p className="font-medium">{selectedBlockForEdit.area_acres?.toFixed(4) || 0} acres</p>
+                      <p className="font-medium">{editingBlock.area_acres?.toFixed(4) || 0} acres</p>
                     </div>
                   </div>
                 </div>
@@ -712,86 +773,25 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
                   Salvar
                 </Button>
                 <Button 
+                  onClick={handleDeleteEdit}
+                  variant="destructive"
+                  size="sm"
+                  className="flex-1"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Deletar
+                </Button>
+                <Button 
                   onClick={handleCancelEdit}
                   variant="outline"
                   size="sm"
                 >
-                  <X className="w-4 h-4 mr-2" />
-                  Cancelar
+                  <X className="w-4 h-4" />
                 </Button>
               </div>
 
               <div className="text-xs text-gray-500 pt-2">
                 <strong>Dica:</strong> Clique em qualquer bloco no mapa para editar rapidamente seu nome e cor.
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Edit Form Modal - Keep existing edit form for compatibility */}
-      {editingBlock && !selectedBlockForEdit && (
-        <div className="absolute top-4 left-4 z-50">
-          <Card className="w-80 bg-white shadow-lg border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg">Editar Bloco</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="edit-name">Nome do Bloco</Label>
-                <Input
-                  id="edit-name"
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                  placeholder="Digite o nome do bloco"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="edit-color">Cor do Bloco</Label>
-                <UISelect 
-                  value={editForm.color} 
-                  onValueChange={(value) => setEditForm({...editForm, color: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border shadow-lg">
-                    {colorOptions.map((color) => (
-                      <SelectItem key={color.value} value={color.value}>
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="w-4 h-4 rounded-full border border-gray-300"
-                            style={{ backgroundColor: color.value }}
-                          />
-                          <div>
-                            <span className="font-medium">{color.label}</span>
-                            <span className="text-xs text-gray-500 ml-2">{color.name}</span>
-                          </div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </UISelect>
-              </div>
-              
-              <div className="flex gap-2 pt-2">
-                <Button 
-                  onClick={handleSaveEdit}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
-                  size="sm"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Salvar
-                </Button>
-                <Button 
-                  onClick={handleCancelEdit}
-                  variant="outline"
-                  size="sm"
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  Cancelar
-                </Button>
               </div>
             </CardContent>
           </Card>
