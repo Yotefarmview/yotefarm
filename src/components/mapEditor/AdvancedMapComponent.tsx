@@ -117,7 +117,17 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   // Calcular área e perímetro usando Turf.js
   const calculatePolygonMetrics = useCallback((coordinates: number[][]) => {
     try {
-      const polygon = turf.polygon([coordinates]);
+      // Ensure the polygon is closed by making sure first and last coordinates are the same
+      const closedCoordinates = [...coordinates];
+      if (closedCoordinates.length > 0) {
+        const first = closedCoordinates[0];
+        const last = closedCoordinates[closedCoordinates.length - 1];
+        if (first[0] !== last[0] || first[1] !== last[1]) {
+          closedCoordinates.push([...first]);
+        }
+      }
+
+      const polygon = turf.polygon([closedCoordinates]);
       const area = turf.area(polygon); // em m²
       const perimeter = turf.length(polygon, { units: 'meters' }); // em metros
       const areaAcres = area * 0.000247105; // conversão para acres
@@ -267,7 +277,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       // Add click event for block selection
       map.on('click', (event) => {
         const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => feature);
-        if (feature && feature.get('blockData')) {
+        // Type check to ensure we have a proper Feature with blockData
+        if (feature && feature instanceof Feature && feature.get('blockData')) {
           handleBlockClick(feature);
         } else {
           // Clicked on empty area, clear selection
@@ -469,7 +480,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         if (selectedFeatures.length > 0) {
           const feature = selectedFeatures[0];
           const blockData = feature.get('blockData');
-          if (blockData) {
+          if (feature instanceof Feature && blockData) {
             handleBlockClick(feature);
           }
         }
