@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Map, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
@@ -92,8 +93,10 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     { value: '#06B6D4', label: 'Turquesa', name: 'Dreno' }
   ];
 
-  // Criar estilo para blocos com nome como legenda
-  const createBlockStyle = useCallback((color: string, transparency: number, name?: string, isSelected?: boolean) => {
+  // Criar estilo para blocos com nome como legenda e área
+  const createBlockStyle = useCallback((color: string, transparency: number, name?: string, area_m2?: number, isSelected?: boolean) => {
+    const displayText = name ? `${name}\n${area_m2?.toFixed(0) || 0} m²` : '';
+    
     return new Style({
       fill: new Fill({
         color: color + Math.round(transparency * 255).toString(16).padStart(2, '0'),
@@ -102,9 +105,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         color: isSelected ? '#FFD700' : color,
         width: isSelected ? 4 : 2,
       }),
-      text: name ? new Text({
-        text: name,
-        font: 'bold 14px Arial, sans-serif',
+      text: displayText ? new Text({
+        text: displayText,
+        font: 'bold 12px Arial, sans-serif',
         fill: new Fill({ color: '#000' }),
         stroke: new Stroke({ color: '#fff', width: 3 }),
         offsetY: 0,
@@ -144,9 +147,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   }, []);
 
   // Function to update block style
-  const updateBlockStyle = useCallback((feature: Feature, name: string, color: string) => {
+  const updateBlockStyle = useCallback((feature: Feature, name: string, color: string, area_m2?: number) => {
     const isSelected = selectedBlockForEdit?.id === feature.get('id');
-    feature.setStyle(createBlockStyle(color, transparency, name, isSelected));
+    feature.setStyle(createBlockStyle(color, transparency, name, area_m2, isSelected));
     feature.setProperties({
       ...feature.getProperties(),
       name: name,
@@ -162,7 +165,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     const feature = features.find(f => f.get('id') === editingBlock.id);
     
     if (feature) {
-      updateBlockStyle(feature, editForm.name, editForm.color);
+      // Update the feature style immediately
+      updateBlockStyle(feature, editForm.name, editForm.color, editingBlock.area_m2);
       
       // Update in parent component
       onBlockUpdate(editingBlock.id, {
@@ -171,6 +175,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         color: editForm.color,
         cor: editForm.color
       });
+
+      // Force re-render by refreshing the vector layer
+      if (vectorSource.current) {
+        vectorSource.current.changed();
+      }
     }
 
     setEditingBlock(null);
@@ -201,11 +210,13 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       if (vectorSource.current) {
         vectorSource.current.getFeatures().forEach(f => {
           const props = f.getProperties();
+          const blockProps = f.get('blockData');
           const isSelected = f.get('id') === blockData.id;
           f.setStyle(createBlockStyle(
             props.color || selectedColor, 
             props.transparency || transparency,
             props.name,
+            blockProps?.area_m2,
             isSelected
           ));
         });
@@ -228,11 +239,13 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         source: newVectorSource,
         style: (feature) => {
           const props = feature.getProperties();
+          const blockData = feature.get('blockData');
           const isSelected = selectedBlockForEdit?.id === feature.get('id');
           return createBlockStyle(
             props.color || selectedColor, 
             props.transparency || transparency,
             props.name,
+            blockData?.area_m2,
             isSelected
           );
         },
@@ -290,10 +303,12 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           if (vectorSource.current) {
             vectorSource.current.getFeatures().forEach(f => {
               const props = f.getProperties();
+              const blockData = f.get('blockData');
               f.setStyle(createBlockStyle(
                 props.color || selectedColor, 
                 props.transparency || transparency,
                 props.name,
+                blockData?.area_m2,
                 false
               ));
             });
@@ -447,7 +462,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
             name: blockData.name,
             color: blockData.color,
             transparency: blockData.transparency,
+            blockData: blockData
           });
+
+          // Update style to show area
+          feature.setStyle(createBlockStyle(selectedColor, transparency, blockData.name, blockData.area_m2));
 
           onPolygonDrawn(blockData);
         }
@@ -462,10 +481,12 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       const select = new Select({
         style: (feature) => {
           const props = feature.getProperties();
+          const blockData = feature.get('blockData');
           return createBlockStyle(
             props.color || selectedColor, 
             props.transparency || transparency,
             props.name,
+            blockData?.area_m2,
             true
           );
         }
@@ -497,6 +518,25 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           const blockId = feature.get('id');
           
           if (blockId) {
+            // Update feature properties
+            feature.setProperties({
+              ...feature.getProperties(),
+              blockData: {
+                ...feature.get('blockData'),
+                ...metrics
+              }
+            });
+
+            // Update style with new area
+            const props = feature.getProperties();
+            const blockData = feature.get('blockData');
+            feature.setStyle(createBlockStyle(
+              props.color || selectedColor,
+              props.transparency || transparency,
+              props.name,
+              metrics.area_m2
+            ));
+
             onBlockUpdate(blockId, {
               coordinates,
               ...metrics
@@ -515,10 +555,12 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       const select = new Select({
         style: (feature) => {
           const props = feature.getProperties();
+          const blockData = feature.get('blockData');
           return createBlockStyle(
             '#EF4444', // Vermelho para indicar seleção para deletar
             0.7,
-            props.name
+            props.name,
+            blockData?.area_m2
           );
         }
       });
@@ -634,6 +676,20 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
                   </SelectContent>
                 </UISelect>
               </div>
+
+              {/* Display block metrics */}
+              {selectedBlockForEdit && (
+                <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                  <h4 className="font-medium text-green-900 mb-2">Dados do Bloco</h4>
+                  <div className="grid grid-cols-1 gap-2 text-sm">
+                    <div>
+                      <span className="text-green-700">Área:</span>
+                      <p className="font-medium">{selectedBlockForEdit.area_m2?.toFixed(2) || 0} m²</p>
+                      <p className="font-medium">{selectedBlockForEdit.area_acres?.toFixed(4) || 0} acres</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               <div className="flex gap-2 pt-2">
                 <Button 
