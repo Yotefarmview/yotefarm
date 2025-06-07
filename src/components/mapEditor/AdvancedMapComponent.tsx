@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Map, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
@@ -93,9 +92,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     { value: '#06B6D4', label: 'Turquesa', name: 'Dreno' }
   ];
 
-  // Criar estilo para blocos com nome como legenda e área
-  const createBlockStyle = useCallback((color: string, transparency: number, name?: string, area_m2?: number, isSelected?: boolean) => {
-    const displayText = name ? `${name}\n${area_m2?.toFixed(0) || 0} m²` : '';
+  // Criar estilo para blocos com nome como legenda e área (apenas acres)
+  const createBlockStyle = useCallback((color: string, transparency: number, name?: string, area_acres?: number, isSelected?: boolean) => {
+    const displayText = name ? `${name}\n${area_acres?.toFixed(4) || 0} acres` : '';
     
     return new Style({
       fill: new Fill({
@@ -146,10 +145,10 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
   }, []);
 
-  // Function to update block style
-  const updateBlockStyle = useCallback((feature: Feature, name: string, color: string, area_m2?: number) => {
+  // Function to update only the selected block style
+  const updateSelectedBlockStyle = useCallback((feature: Feature, name: string, color: string, area_acres?: number) => {
     const isSelected = selectedBlockForEdit?.id === feature.get('id');
-    feature.setStyle(createBlockStyle(color, transparency, name, area_m2, isSelected));
+    feature.setStyle(createBlockStyle(color, transparency, name, area_acres, isSelected));
     feature.setProperties({
       ...feature.getProperties(),
       name: name,
@@ -157,7 +156,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     });
   }, [createBlockStyle, transparency, selectedBlockForEdit]);
 
-  // Handle save edit
+  // Handle save edit - only update the selected block
   const handleSaveEdit = useCallback(() => {
     if (!editingBlock || !vectorSource.current) return;
 
@@ -165,8 +164,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     const feature = features.find(f => f.get('id') === editingBlock.id);
     
     if (feature) {
-      // Update the feature style immediately
-      updateBlockStyle(feature, editForm.name, editForm.color, editingBlock.area_m2);
+      // Update only this specific feature style
+      updateSelectedBlockStyle(feature, editForm.name, editForm.color, editingBlock.area_acres);
       
       // Update in parent component
       onBlockUpdate(editingBlock.id, {
@@ -185,14 +184,29 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     setEditingBlock(null);
     setEditForm({ name: '', color: '#10B981' });
     setSelectedBlockForEdit(null);
-  }, [editingBlock, editForm, onBlockUpdate, updateBlockStyle]);
+  }, [editingBlock, editForm, onBlockUpdate, updateSelectedBlockStyle]);
 
   // Handle cancel edit
   const handleCancelEdit = useCallback(() => {
+    // Reset styles for all features to remove selection highlighting
+    if (vectorSource.current) {
+      vectorSource.current.getFeatures().forEach(f => {
+        const props = f.getProperties();
+        const blockData = f.get('blockData');
+        f.setStyle(createBlockStyle(
+          props.color || selectedColor, 
+          props.transparency || transparency,
+          props.name,
+          blockData?.area_acres,
+          false // No selection
+        ));
+      });
+    }
+    
     setEditingBlock(null);
     setEditForm({ name: '', color: '#10B981' });
     setSelectedBlockForEdit(null);
-  }, []);
+  }, [createBlockStyle, selectedColor, transparency]);
 
   // Handle block selection for editing
   const handleBlockClick = useCallback((feature: Feature) => {
@@ -206,7 +220,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       });
       onBlockSelect(blockData);
       
-      // Update all features styles to show selection
+      // Update only the clicked feature to show selection, reset others
       if (vectorSource.current) {
         vectorSource.current.getFeatures().forEach(f => {
           const props = f.getProperties();
@@ -216,7 +230,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
             props.color || selectedColor, 
             props.transparency || transparency,
             props.name,
-            blockProps?.area_m2,
+            blockProps?.area_acres,
             isSelected
           ));
         });
@@ -245,7 +259,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
             props.color || selectedColor, 
             props.transparency || transparency,
             props.name,
-            blockData?.area_m2,
+            blockData?.area_acres,
             isSelected
           );
         },
@@ -290,7 +304,6 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       // Add click event for block selection
       map.on('click', (event) => {
         const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => feature);
-        // Type check to ensure we have a proper Feature with blockData
         if (feature && feature instanceof Feature && feature.get('blockData')) {
           handleBlockClick(feature);
         } else {
@@ -308,7 +321,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
                 props.color || selectedColor, 
                 props.transparency || transparency,
                 props.name,
-                blockData?.area_m2,
+                blockData?.area_acres,
                 false
               ));
             });
@@ -337,7 +350,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     } catch (error) {
       console.error('Erro ao inicializar mapa:', error);
     }
-  }, []); // Dependências vazias para executar apenas uma vez
+  }, []);
 
   // Carregar blocos existentes
   useEffect(() => {
@@ -465,8 +478,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
             blockData: blockData
           });
 
-          // Update style to show area
-          feature.setStyle(createBlockStyle(selectedColor, transparency, blockData.name, blockData.area_m2));
+          // Update style to show area in acres
+          feature.setStyle(createBlockStyle(selectedColor, transparency, blockData.name, blockData.area_acres));
 
           onPolygonDrawn(blockData);
         }
@@ -486,7 +499,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
             props.color || selectedColor, 
             props.transparency || transparency,
             props.name,
-            blockData?.area_m2,
+            blockData?.area_acres,
             true
           );
         }
@@ -529,12 +542,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
             // Update style with new area
             const props = feature.getProperties();
-            const blockData = feature.get('blockData');
             feature.setStyle(createBlockStyle(
               props.color || selectedColor,
               props.transparency || transparency,
               props.name,
-              metrics.area_m2
+              metrics.area_acres
             ));
 
             onBlockUpdate(blockId, {
@@ -560,7 +572,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
             '#EF4444', // Vermelho para indicar seleção para deletar
             0.7,
             props.name,
-            blockData?.area_m2
+            blockData?.area_acres
           );
         }
       });
@@ -677,14 +689,13 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
                 </UISelect>
               </div>
 
-              {/* Display block metrics */}
+              {/* Display block metrics - only acres */}
               {selectedBlockForEdit && (
                 <div className="p-3 bg-green-50 rounded-lg border border-green-200">
                   <h4 className="font-medium text-green-900 mb-2">Dados do Bloco</h4>
                   <div className="grid grid-cols-1 gap-2 text-sm">
                     <div>
                       <span className="text-green-700">Área:</span>
-                      <p className="font-medium">{selectedBlockForEdit.area_m2?.toFixed(2) || 0} m²</p>
                       <p className="font-medium">{selectedBlockForEdit.area_acres?.toFixed(4) || 0} acres</p>
                     </div>
                   </div>
