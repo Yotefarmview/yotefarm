@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Map, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
@@ -20,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select as UISelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Save, X } from 'lucide-react';
+import { Save, X, Edit2 } from 'lucide-react';
 import 'ol/ol.css';
 
 interface BlockData {
@@ -78,6 +77,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const [editingBlock, setEditingBlock] = useState<any>(null);
   const [editForm, setEditForm] = useState({ name: '', color: '#10B981' });
   const [mapReady, setMapReady] = useState(false);
+  const [selectedBlockForEdit, setSelectedBlockForEdit] = useState<any>(null);
 
   // Color options for blocks
   const colorOptions = [
@@ -93,14 +93,14 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   ];
 
   // Criar estilo para blocos com nome como legenda
-  const createBlockStyle = useCallback((color: string, transparency: number, name?: string) => {
+  const createBlockStyle = useCallback((color: string, transparency: number, name?: string, isSelected?: boolean) => {
     return new Style({
       fill: new Fill({
         color: color + Math.round(transparency * 255).toString(16).padStart(2, '0'),
       }),
       stroke: new Stroke({
-        color: color,
-        width: 2,
+        color: isSelected ? '#FFD700' : color,
+        width: isSelected ? 4 : 2,
       }),
       text: name ? new Text({
         text: name,
@@ -135,13 +135,14 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
   // Function to update block style
   const updateBlockStyle = useCallback((feature: Feature, name: string, color: string) => {
-    feature.setStyle(createBlockStyle(color, transparency, name));
+    const isSelected = selectedBlockForEdit?.id === feature.get('id');
+    feature.setStyle(createBlockStyle(color, transparency, name, isSelected));
     feature.setProperties({
       ...feature.getProperties(),
       name: name,
       color: color
     });
-  }, [createBlockStyle, transparency]);
+  }, [createBlockStyle, transparency, selectedBlockForEdit]);
 
   // Handle save edit
   const handleSaveEdit = useCallback(() => {
@@ -164,13 +165,43 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
     setEditingBlock(null);
     setEditForm({ name: '', color: '#10B981' });
+    setSelectedBlockForEdit(null);
   }, [editingBlock, editForm, onBlockUpdate, updateBlockStyle]);
 
   // Handle cancel edit
   const handleCancelEdit = useCallback(() => {
     setEditingBlock(null);
     setEditForm({ name: '', color: '#10B981' });
+    setSelectedBlockForEdit(null);
   }, []);
+
+  // Handle block selection for editing
+  const handleBlockClick = useCallback((feature: Feature) => {
+    const blockData = feature.get('blockData');
+    if (blockData) {
+      setSelectedBlockForEdit(blockData);
+      setEditingBlock(blockData);
+      setEditForm({
+        name: blockData.nome || feature.get('name') || '',
+        color: blockData.cor || feature.get('color') || '#10B981'
+      });
+      onBlockSelect(blockData);
+      
+      // Update all features styles to show selection
+      if (vectorSource.current) {
+        vectorSource.current.getFeatures().forEach(f => {
+          const props = f.getProperties();
+          const isSelected = f.get('id') === blockData.id;
+          f.setStyle(createBlockStyle(
+            props.color || selectedColor, 
+            props.transparency || transparency,
+            props.name,
+            isSelected
+          ));
+        });
+      }
+    }
+  }, [onBlockSelect, createBlockStyle, selectedColor, transparency]);
 
   // Inicializar mapa - uma única vez
   useEffect(() => {
@@ -187,10 +218,12 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         source: newVectorSource,
         style: (feature) => {
           const props = feature.getProperties();
+          const isSelected = selectedBlockForEdit?.id === feature.get('id');
           return createBlockStyle(
             props.color || selectedColor, 
             props.transparency || transparency,
-            props.name
+            props.name,
+            isSelected
           );
         },
       });
@@ -229,6 +262,32 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           zoom: 10,
           maxZoom: 22,
         }),
+      });
+
+      // Add click event for block selection
+      map.on('click', (event) => {
+        const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => feature);
+        if (feature && feature.get('blockData')) {
+          handleBlockClick(feature);
+        } else {
+          // Clicked on empty area, clear selection
+          setSelectedBlockForEdit(null);
+          setEditingBlock(null);
+          setEditForm({ name: '', color: '#10B981' });
+          
+          // Update all features styles to remove selection
+          if (vectorSource.current) {
+            vectorSource.current.getFeatures().forEach(f => {
+              const props = f.getProperties();
+              f.setStyle(createBlockStyle(
+                props.color || selectedColor, 
+                props.transparency || transparency,
+                props.name,
+                false
+              ));
+            });
+          }
+        }
       });
 
       mapInstance.current = map;
@@ -280,7 +339,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           const feature = new Feature({
             geometry: polygon,
             id: block.id,
-            name: block.nome, // Usar o nome do bloco aqui
+            name: block.nome,
             color: block.cor,
             transparency: block.transparencia || 0.4,
             blockData: block
@@ -395,7 +454,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           return createBlockStyle(
             props.color || selectedColor, 
             props.transparency || transparency,
-            props.name
+            props.name,
+            true
           );
         }
       });
@@ -410,12 +470,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           const feature = selectedFeatures[0];
           const blockData = feature.get('blockData');
           if (blockData) {
-            setEditingBlock(blockData);
-            setEditForm({
-              name: blockData.nome || feature.get('name') || '',
-              color: blockData.cor || feature.get('color') || '#10B981'
-            });
-            onBlockSelect(blockData);
+            handleBlockClick(feature);
           }
         }
       });
@@ -475,7 +530,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       map.addInteraction(select);
       setCurrentSelect(select);
     }
-  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, onBlockSelect, calculatePolygonMetrics, createBlockStyle]);
+  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick]);
 
   // Centralizar mapa em coordenadas específicas
   useEffect(() => {
@@ -520,8 +575,84 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }}
       />
       
-      {/* Edit Form Modal */}
-      {editingBlock && (
+      {/* Quick Edit Panel */}
+      {selectedBlockForEdit && (
+        <div className="absolute top-4 right-4 z-50">
+          <Card className="w-80 bg-white shadow-lg border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Edit2 className="w-5 h-5" />
+                Edição Rápida
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="quick-edit-name">Nome do Bloco</Label>
+                <Input
+                  id="quick-edit-name"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                  placeholder="Digite o nome do bloco"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="quick-edit-color">Cor do Bloco</Label>
+                <UISelect 
+                  value={editForm.color} 
+                  onValueChange={(value) => setEditForm({...editForm, color: value})}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border shadow-lg z-50">
+                    {colorOptions.map((color) => (
+                      <SelectItem key={color.value} value={color.value}>
+                        <div className="flex items-center gap-3">
+                          <div 
+                            className="w-4 h-4 rounded-full border border-gray-300"
+                            style={{ backgroundColor: color.value }}
+                          />
+                          <div>
+                            <span className="font-medium">{color.label}</span>
+                            <span className="text-xs text-gray-500 ml-2">{color.name}</span>
+                          </div>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </UISelect>
+              </div>
+              
+              <div className="flex gap-2 pt-2">
+                <Button 
+                  onClick={handleSaveEdit}
+                  className="flex-1 bg-green-600 hover:bg-green-700"
+                  size="sm"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Salvar
+                </Button>
+                <Button 
+                  onClick={handleCancelEdit}
+                  variant="outline"
+                  size="sm"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Cancelar
+                </Button>
+              </div>
+
+              <div className="text-xs text-gray-500 pt-2">
+                <strong>Dica:</strong> Clique em qualquer bloco no mapa para editar rapidamente seu nome e cor.
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Edit Form Modal - Keep existing edit form for compatibility */}
+      {editingBlock && !selectedBlockForEdit && (
         <div className="absolute top-4 left-4 z-50">
           <Card className="w-80 bg-white shadow-lg border">
             <CardHeader className="pb-3">

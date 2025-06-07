@@ -24,7 +24,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
   const menuItems = [
     { path: '/', icon: BarChart3, label: t('navigation.dashboard') },
     { path: '/farms', icon: MapPin, label: t('navigation.farms') },
-    { path: '/map-editor', icon: Map, label: t('navigation.mapEditor') },
+    { path: '/advanced-map-editor', icon: Map, label: 'Advanced Map Editor' },
     { path: '/applications', icon: Sprout, label: t('navigation.applications') },
     { path: '/settings', icon: Settings, label: t('navigation.settings') }
   ];
