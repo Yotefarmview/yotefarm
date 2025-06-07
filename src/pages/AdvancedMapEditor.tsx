@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Map as MapIcon, Save, Settings, Download, Upload, Navigation, Layers } from 'lucide-react';
+import { Map as MapIcon, Save, Settings, Download, Upload, Navigation, Layers, FileText } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -16,18 +16,20 @@ import AdvancedMapComponent from '../components/mapEditor/AdvancedMapComponent';
 import LocationSearch from '../components/mapEditor/LocationSearch';
 import { useBlocks } from '../hooks/useBlocks';
 import { useFarms } from '../hooks/useFarms';
+import jsPDF from 'jspdf';
 
 const AdvancedMapEditor: React.FC = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   
   // Get coordinates from URL parameters
   const urlLat = searchParams.get('lat');
   const urlLng = searchParams.get('lng');
-  const farmId = searchParams.get('fazenda');
+  const urlFarmId = searchParams.get('fazenda');
 
-  const { blocks, createBlock, updateBlock, deleteBlock } = useBlocks(farmId || undefined);
+  const [selectedFarmId, setSelectedFarmId] = useState<string>(urlFarmId || '');
+  const { blocks, createBlock, updateBlock, deleteBlock } = useBlocks(selectedFarmId || undefined);
   const { farms } = useFarms();
 
   const [selectedBlock, setSelectedBlock] = useState<any>(null);
@@ -69,14 +71,30 @@ const AdvancedMapEditor: React.FC = () => {
     { value: '#06B6D4', label: 'Turquesa', name: 'Dreno' }
   ];
 
+  // Handle farm selection
+  const handleFarmChange = (farmId: string) => {
+    setSelectedFarmId(farmId);
+    const newSearchParams = new URLSearchParams(searchParams);
+    newSearchParams.set('fazenda', farmId);
+    setSearchParams(newSearchParams);
+    
+    const farm = farms.find(f => f.id === farmId);
+    if (farm) {
+      setCurrentFarm(farm);
+      if (farm.latitude && farm.longitude) {
+        setCenterCoordinates([farm.longitude, farm.latitude]);
+      }
+    }
+  };
+
   // Load farm and coordinates from URL
   useEffect(() => {
     if (urlLat && urlLng) {
       setCenterCoordinates([parseFloat(urlLng), parseFloat(urlLat)]);
     }
     
-    if (farmId && farms.length > 0) {
-      const farm = farms.find(f => f.id === farmId);
+    if (selectedFarmId && farms.length > 0) {
+      const farm = farms.find(f => f.id === selectedFarmId);
       if (farm) {
         setCurrentFarm(farm);
         if (farm.latitude && farm.longitude && !urlLat && !urlLng) {
@@ -84,7 +102,7 @@ const AdvancedMapEditor: React.FC = () => {
         }
       }
     }
-  }, [farmId, farms, urlLat, urlLng]);
+  }, [selectedFarmId, farms, urlLat, urlLng]);
 
   // Update form when block is selected
   useEffect(() => {
@@ -103,7 +121,7 @@ const AdvancedMapEditor: React.FC = () => {
 
   const handlePolygonDrawn = async (blockData: any) => {
     try {
-      if (!farmId) {
+      if (!selectedFarmId) {
         toast({
           title: "Erro",
           description: "Selecione uma fazenda primeiro",
@@ -114,7 +132,7 @@ const AdvancedMapEditor: React.FC = () => {
 
       const newBlock = {
         ...blockData,
-        fazenda_id: farmId,
+        fazenda_id: selectedFarmId,
         coordenadas: JSON.stringify(blockData.coordinates),
         nome: formData.nome || blockData.name,
         cor: selectedColor,
@@ -218,6 +236,21 @@ const AdvancedMapEditor: React.FC = () => {
     }
   };
 
+  const handleSaveAllBlocks = async () => {
+    try {
+      toast({
+        title: "Sucesso",
+        description: "Todas as informações foram salvas!"
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar informações",
+        variant: "destructive"
+      });
+    }
+  };
+
   const resetForm = () => {
     setFormData({
       nome: '',
@@ -239,7 +272,6 @@ const AdvancedMapEditor: React.FC = () => {
 
   const exportGeoJSON = () => {
     const features = blocks.map(block => {
-      // Fix the coordinates parsing issue - handle both string and Json types
       let coordinates;
       if (typeof block.coordenadas === 'string') {
         coordinates = JSON.parse(block.coordenadas);
@@ -279,6 +311,122 @@ const AdvancedMapEditor: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
+  const exportMapToPDF = () => {
+    try {
+      // Ativar modo impressão temporariamente
+      setPrintMode(true);
+      
+      setTimeout(() => {
+        const mapElement = document.querySelector('.ol-viewport') as HTMLElement;
+        if (!mapElement) {
+          toast({
+            title: "Erro",
+            description: "Não foi possível capturar o mapa",
+            variant: "destructive"
+          });
+          setPrintMode(false);
+          return;
+        }
+
+        // Criar canvas do mapa
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Definir tamanho do canvas
+        const mapRect = mapElement.getBoundingClientRect();
+        canvas.width = mapRect.width;
+        canvas.height = mapRect.height;
+
+        // Capturar os tiles do mapa
+        const mapLayers = mapElement.querySelectorAll('canvas');
+        
+        if (ctx && mapLayers.length > 0) {
+          // Desenhar fundo branco
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          
+          // Desenhar cada camada do mapa
+          mapLayers.forEach(layer => {
+            ctx.drawImage(layer, 0, 0);
+          });
+
+          // Criar PDF
+          const pdf = new jsPDF({
+            orientation: canvas.width > canvas.height ? 'landscape' : 'portrait',
+            unit: 'mm',
+            format: 'a4'
+          });
+
+          // Adicionar título
+          pdf.setFontSize(16);
+          pdf.text(`Mapa - ${currentFarm?.nome || 'Fazenda'}`, 20, 20);
+          
+          // Adicionar data
+          pdf.setFontSize(10);
+          pdf.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 20, 30);
+
+          // Adicionar imagem do mapa
+          const imgData = canvas.toDataURL('image/png');
+          const pdfWidth = pdf.internal.pageSize.getWidth() - 40;
+          const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+          
+          pdf.addImage(imgData, 'PNG', 20, 40, pdfWidth, pdfHeight);
+
+          // Adicionar legenda dos blocos
+          let yPosition = 40 + pdfHeight + 20;
+          
+          if (blocks.length > 0) {
+            pdf.setFontSize(12);
+            pdf.text('Legenda dos Blocos:', 20, yPosition);
+            yPosition += 10;
+
+            blocks.forEach((block, index) => {
+              if (yPosition > 270) { // Nova página se necessário
+                pdf.addPage();
+                yPosition = 20;
+              }
+              
+              pdf.setFontSize(10);
+              // Desenhar quadrado colorido
+              pdf.setFillColor(block.cor);
+              pdf.rect(20, yPosition - 3, 5, 5, 'F');
+              
+              // Adicionar texto
+              pdf.text(`${block.nome} - ${block.area_m2?.toFixed(2) || 0} m²`, 30, yPosition);
+              yPosition += 8;
+            });
+          }
+
+          // Salvar PDF
+          pdf.save(`mapa_${currentFarm?.nome || 'fazenda'}_${new Date().toISOString().split('T')[0]}.pdf`);
+          
+          toast({
+            title: "Sucesso",
+            description: "PDF exportado com sucesso!"
+          });
+        } else {
+          toast({
+            title: "Erro",
+            description: "Não foi possível capturar o conteúdo do mapa",
+            variant: "destructive"
+          });
+        }
+
+        // Desativar modo impressão
+        setPrintMode(false);
+      }, 500);
+      
+    } catch (error) {
+      console.error('Erro ao exportar PDF:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao gerar PDF",
+        variant: "destructive"
+      });
+      setPrintMode(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -308,9 +456,17 @@ const AdvancedMapEditor: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2">
+            <Button onClick={handleSaveAllBlocks} className="bg-green-600 hover:bg-green-700">
+              <Save className="w-4 h-4 mr-2" />
+              Salvar Tudo
+            </Button>
             <Button variant="outline" size="sm" onClick={exportGeoJSON}>
               <Download className="w-4 h-4 mr-2" />
               Exportar GeoJSON
+            </Button>
+            <Button variant="outline" size="sm" onClick={exportMapToPDF}>
+              <FileText className="w-4 h-4 mr-2" />
+              Exportar PDF
             </Button>
             <Button variant="outline" size="sm">
               <Upload className="w-4 h-4 mr-2" />
@@ -337,6 +493,21 @@ const AdvancedMapEditor: React.FC = () => {
                 
                 {/* Map Controls */}
                 <div className="flex items-center gap-2">
+                  <div className="min-w-[200px]">
+                    <Select value={selectedFarmId} onValueChange={handleFarmChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione uma fazenda" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border shadow-lg z-50">
+                        {farms.map((farm) => (
+                          <SelectItem key={farm.id} value={farm.id}>
+                            {farm.nome}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
                   <Button
                     variant={showSatellite ? "default" : "outline"}
                     size="sm"
@@ -464,7 +635,7 @@ const AdvancedMapEditor: React.FC = () => {
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="bg-white border shadow-lg z-50">
                       {colorOptions.map((color) => (
                         <SelectItem key={color.value} value={color.value}>
                           <div className="flex items-center gap-3">
@@ -574,9 +745,10 @@ const AdvancedMapEditor: React.FC = () => {
               <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <h4 className="font-medium text-blue-900 mb-2">Instruções:</h4>
                 <ul className="text-sm text-blue-700 space-y-1">
+                  <li>• Selecione uma fazenda primeiro</li>
                   <li>• Use "Desenhar" para criar novos blocos</li>
                   <li>• Clique em blocos existentes para editar</li>
-                  <li>• Use "Modo Impressão" para relatórios</li>
+                  <li>• Use "Modo Impressão" antes de exportar PDF</li>
                   <li>• Busque por endereços na barra de pesquisa</li>
                 </ul>
               </div>

@@ -176,7 +176,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
 
-    console.log('Inicializando mapa pela primeira vez...');
+    console.log('Inicializando mapa...');
 
     try {
       // Criar VectorSource
@@ -280,7 +280,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           const feature = new Feature({
             geometry: polygon,
             id: block.id,
-            name: block.nome,
+            name: block.nome, // Usar o nome do bloco aqui
             color: block.cor,
             transparency: block.transparencia || 0.4,
             blockData: block
