@@ -13,39 +13,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '../components/ui/dialog';
-
-interface Farm {
-  id: string;
-  nome: string;
-  localizacao: string;
-  area_total: number;
-  tipo_cana: string;
-  latitude?: number;
-  longitude?: number;
-}
+import { useToast } from '@/hooks/use-toast';
+import { useFarms } from '../hooks/useFarms';
 
 const Farms: React.FC = () => {
   const { t } = useTranslation();
-  const [farms, setFarms] = useState<Farm[]>([
-    {
-      id: '1',
-      nome: 'Fazenda Santa Maria',
-      localizacao: 'Ribeirão Preto, SP',
-      area_total: 150.5,
-      tipo_cana: 'SP80-1842',
-      latitude: -21.1775,
-      longitude: -47.8103
-    },
-    {
-      id: '2',
-      nome: 'Fazenda São José',
-      localizacao: 'Sertãozinho, SP',
-      area_total: 97.3,
-      tipo_cana: 'RB92579',
-      latitude: -21.1375,
-      longitude: -47.9803
-    }
-  ]);
+  const { toast } = useToast();
+  const { farms, loading, error, createFarm } = useFarms();
 
   const [newFarm, setNewFarm] = useState({
     nome: '',
@@ -59,26 +33,55 @@ const Farms: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Simulate geolocation API call
-    const mockCoords = {
-      latitude: -21.1775 + (Math.random() - 0.5) * 0.1,
-      longitude: -47.8103 + (Math.random() - 0.5) * 0.1
-    };
+    try {
+      // Simulate geolocation API call for coordinates
+      const mockCoords = {
+        latitude: -21.1775 + (Math.random() - 0.5) * 0.1,
+        longitude: -47.8103 + (Math.random() - 0.5) * 0.1
+      };
 
-    const farm: Farm = {
-      id: Date.now().toString(),
-      nome: newFarm.nome,
-      localizacao: newFarm.localizacao,
-      area_total: parseFloat(newFarm.area_total),
-      tipo_cana: newFarm.tipo_cana,
-      latitude: mockCoords.latitude,
-      longitude: mockCoords.longitude
-    };
+      const farmData = {
+        nome: newFarm.nome,
+        localizacao: newFarm.localizacao,
+        area_total: parseFloat(newFarm.area_total),
+        tipo_cana: newFarm.tipo_cana,
+        latitude: mockCoords.latitude,
+        longitude: mockCoords.longitude
+      };
 
-    setFarms([...farms, farm]);
-    setNewFarm({ nome: '', localizacao: '', area_total: '', tipo_cana: '' });
-    setIsDialogOpen(false);
+      await createFarm(farmData);
+      
+      setNewFarm({ nome: '', localizacao: '', area_total: '', tipo_cana: '' });
+      setIsDialogOpen(false);
+      
+      toast({
+        title: "Sucesso",
+        description: "Fazenda criada com sucesso!"
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao criar fazenda",
+        variant: "destructive"
+      });
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-lg">Carregando fazendas...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-96">
+        <div className="text-red-600">Erro ao carregar fazendas: {error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -210,6 +213,17 @@ const Farms: React.FC = () => {
           </motion.div>
         ))}
       </div>
+
+      {farms.length === 0 && (
+        <div className="text-center py-12">
+          <div className="text-gray-500 text-lg mb-4">
+            Nenhuma fazenda cadastrada ainda
+          </div>
+          <p className="text-gray-400">
+            Clique em "Nova Fazenda" para começar
+          </p>
+        </div>
+      )}
     </div>
   );
 };
