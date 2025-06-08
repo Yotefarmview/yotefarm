@@ -11,13 +11,27 @@ interface LocationResult {
   boundingbox: [string, string, string, string];
 }
 
+interface PostalCodeResult {
+  country: string;
+  countryCode: string;
+  region: string;
+  regionCode: string;
+  city: string;
+  lat: number;
+  lon: number;
+  postalCode: string;
+  address?: string;
+}
+
 interface LocationSearchProps {
   onLocationSelect: (lat: number, lon: number, boundingbox?: [number, number, number, number]) => void;
+  onAddressUpdate?: (address: string) => void;
   placeholder?: string;
 }
 
 const LocationSearch: React.FC<LocationSearchProps> = ({ 
   onLocationSelect, 
+  onAddressUpdate,
   placeholder = "Buscar localização..." 
 }) => {
   const [query, setQuery] = useState('');
@@ -25,6 +39,39 @@ const LocationSearch: React.FC<LocationSearchProps> = ({
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  const searchByPostalCode = async (postalCode: string) => {
+    try {
+      // Using Nominatim for worldwide postal code search
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(postalCode)}&limit=5&addressdetails=1&extratags=1`
+      );
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const result = data[0];
+        const lat = parseFloat(result.lat);
+        const lon = parseFloat(result.lon);
+        
+        // Extract address components
+        const address = result.display_name;
+        
+        if (onAddressUpdate && address) {
+          onAddressUpdate(address);
+        }
+        
+        onLocationSelect(lat, lon);
+        setQuery(address);
+        setShowResults(false);
+        
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Erro na busca de CEP/Postal Code:', error);
+      return false;
+    }
+  };
 
   const searchLocation = async (searchQuery: string) => {
     if (searchQuery.length < 3) {
@@ -34,8 +81,21 @@ const LocationSearch: React.FC<LocationSearchProps> = ({
 
     setLoading(true);
     try {
+      // Check if it looks like a postal code (numbers, letters, dashes, spaces)
+      const postalCodePattern = /^[A-Z0-9\s\-]{3,12}$/i;
+      const cleanQuery = searchQuery.replace(/\s+/g, '').replace(/-/g, '');
+      
+      if (postalCodePattern.test(searchQuery)) {
+        const found = await searchByPostalCode(searchQuery);
+        if (found) {
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Fallback to general location search
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&countrycodes=BR&addressdetails=1`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}&limit=5&addressdetails=1`
       );
       const data = await response.json();
       setResults(data || []);
@@ -59,6 +119,11 @@ const LocationSearch: React.FC<LocationSearchProps> = ({
     ];
     
     onLocationSelect(lat, lon, boundingbox);
+    
+    if (onAddressUpdate) {
+      onAddressUpdate(result.display_name);
+    }
+    
     setQuery(result.display_name);
     setShowResults(false);
   };

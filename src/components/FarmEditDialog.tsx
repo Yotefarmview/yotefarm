@@ -58,31 +58,34 @@ const FarmEditDialog: React.FC<FarmEditDialogProps> = ({
     }
   }, [farm]);
 
-  const handleCepChange = async (cep: string) => {
-    setFormData({...formData, cep});
+  const handlePostalCodeSearch = async (postalCode: string) => {
+    setFormData({...formData, cep: postalCode});
     
-    // Remove caracteres não numéricos
-    const cleanCep = cep.replace(/\D/g, '');
-    
-    if (cleanCep.length === 8) {
+    if (postalCode.length >= 3) {
       try {
-        const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        const response = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(postalCode)}&limit=1&addressdetails=1`
+        );
         const data = await response.json();
         
-        if (!data.erro) {
-          const endereco = `${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}`;
+        if (data && data.length > 0) {
+          const result = data[0];
+          const endereco = result.display_name;
+          
           setFormData(prev => ({
             ...prev,
-            localizacao: endereco
+            localizacao: endereco,
+            latitude: parseFloat(result.lat),
+            longitude: parseFloat(result.lon)
           }));
           
           toast({
-            title: "CEP encontrado",
+            title: "Código postal encontrado",
             description: `Endereço atualizado: ${endereco}`
           });
         }
       } catch (error) {
-        console.error('Erro ao buscar CEP:', error);
+        console.error('Erro ao buscar código postal:', error);
       }
     }
   };
@@ -99,6 +102,13 @@ const FarmEditDialog: React.FC<FarmEditDialogProps> = ({
       title: "Localização selecionada",
       description: `Coordenadas: ${lat.toFixed(6)}, ${lon.toFixed(6)}`
     });
+  };
+
+  const handleAddressUpdate = (address: string) => {
+    setFormData(prev => ({
+      ...prev,
+      localizacao: address
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -172,13 +182,12 @@ const FarmEditDialog: React.FC<FarmEditDialogProps> = ({
           </div>
 
           <div>
-            <Label htmlFor="cep">CEP</Label>
+            <Label htmlFor="cep">CEP / Código Postal</Label>
             <Input
               id="cep"
               value={formData.cep}
-              onChange={(e) => handleCepChange(e.target.value)}
-              placeholder="00000-000"
-              maxLength={9}
+              onChange={(e) => handlePostalCodeSearch(e.target.value)}
+              placeholder="Ex: 12345-678, SW1A 1AA, 75001"
             />
           </div>
 
@@ -186,7 +195,8 @@ const FarmEditDialog: React.FC<FarmEditDialogProps> = ({
             <Label htmlFor="localizacao">{t('farms.location')}</Label>
             <LocationSearch
               onLocationSelect={handleLocationSelect}
-              placeholder="Digite o endereço ou use o CEP acima"
+              onAddressUpdate={handleAddressUpdate}
+              placeholder="Digite o endereço ou use o código postal acima"
             />
             <Input
               id="localizacao"
