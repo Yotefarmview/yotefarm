@@ -34,6 +34,18 @@ const Farms: React.FC = () => {
     e.preventDefault();
     
     try {
+      const areaValue = parseFloat(newFarm.area_total);
+      
+      // Validação para evitar overflow do campo numérico
+      if (areaValue >= 100000000) { // 10^8
+        toast({
+          title: "Erro de Validação",
+          description: "A área total deve ser menor que 100.000.000",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Simulate geolocation API call for coordinates
       const mockCoords = {
         latitude: -21.1775 + (Math.random() - 0.5) * 0.1,
@@ -43,13 +55,14 @@ const Farms: React.FC = () => {
       const farmData = {
         nome: newFarm.nome,
         localizacao: newFarm.localizacao,
-        area_total: parseFloat(newFarm.area_total),
+        area_total: areaValue,
         tipo_cana: newFarm.tipo_cana,
         latitude: mockCoords.latitude,
         longitude: mockCoords.longitude,
         cliente_id: null  // Campo obrigatório do Supabase, mas nullable
       };
 
+      console.log('Enviando dados da fazenda:', farmData);
       await createFarm(farmData);
       
       setNewFarm({ nome: '', localizacao: '', area_total: '', tipo_cana: '' });
@@ -60,9 +73,10 @@ const Farms: React.FC = () => {
         description: "Fazenda criada com sucesso!"
       });
     } catch (error) {
+      console.error('Erro ao criar fazenda:', error);
       toast({
         title: "Erro",
-        description: "Erro ao criar fazenda",
+        description: `Erro ao criar fazenda: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         variant: "destructive"
       });
     }
@@ -132,13 +146,15 @@ const Farms: React.FC = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="area_total">{t('farms.totalArea')}</Label>
+                <Label htmlFor="area_total">{t('farms.totalArea')} (hectares)</Label>
                 <Input
                   id="area_total"
                   type="number"
-                  step="0.1"
+                  step="0.01"
+                  max="99999999"
                   value={newFarm.area_total}
                   onChange={(e) => setNewFarm({...newFarm, area_total: e.target.value})}
+                  placeholder="Ex: 100.50"
                   required
                 />
               </div>
@@ -185,7 +201,7 @@ const Farms: React.FC = () => {
             <div className="space-y-2 mb-4">
               <div className="flex justify-between">
                 <span className="text-gray-600">Área Total:</span>
-                <span className="font-medium">{farm.area_total} acres</span>
+                <span className="font-medium">{farm.area_total} hectares</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Tipo de Cana:</span>
