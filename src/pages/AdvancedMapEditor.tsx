@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
@@ -30,7 +29,7 @@ const AdvancedMapEditor: React.FC = () => {
 
   const [selectedFarmId, setSelectedFarmId] = useState<string>(urlFarmId || '');
   const { blocks, createBlock, updateBlock, deleteBlock } = useBlocks(selectedFarmId || undefined);
-  const { farms } = useFarms();
+  const { farms, updateFarm } = useFarms();
 
   const [selectedBlock, setSelectedBlock] = useState<any>(null);
   const [currentFarm, setCurrentFarm] = useState<any>(null);
@@ -48,14 +47,19 @@ const AdvancedMapEditor: React.FC = () => {
   const [centerCoordinates, setCenterCoordinates] = useState<[number, number] | undefined>();
   const [boundingBox, setBoundingBox] = useState<[number, number, number, number] | undefined>();
 
-  // Form states
-  const [formData, setFormData] = useState({
-    nome: '',
-    cor: '#10B981',
+  // Farm form states - moved from block form to farm form
+  const [farmFormData, setFarmFormData] = useState({
     data_plantio: '',
-    ultima_aplicacao: '',
     proxima_colheita: '',
-    observacoes: ''
+    ultima_aplicacao: '',
+    observacoes: '',
+    tipo_cana: ''
+  });
+
+  // Block form states - simplified for block creation only
+  const [blockFormData, setBlockFormData] = useState({
+    nome: '',
+    cor: '#10B981'
   });
 
   // Color options for blocks
@@ -84,6 +88,15 @@ const AdvancedMapEditor: React.FC = () => {
       if (farm.latitude && farm.longitude) {
         setCenterCoordinates([farm.longitude, farm.latitude]);
       }
+      
+      // Load farm data into form
+      setFarmFormData({
+        data_plantio: farm.data_plantio || '',
+        proxima_colheita: farm.proxima_colheita || '',
+        ultima_aplicacao: farm.ultima_aplicacao || '',
+        observacoes: farm.observacoes || '',
+        tipo_cana: farm.tipo_cana || ''
+      });
     }
   };
 
@@ -100,20 +113,25 @@ const AdvancedMapEditor: React.FC = () => {
         if (farm.latitude && farm.longitude && !urlLat && !urlLng) {
           setCenterCoordinates([farm.longitude, farm.latitude]);
         }
+        
+        // Load farm data into form
+        setFarmFormData({
+          data_plantio: farm.data_plantio || '',
+          proxima_colheita: farm.proxima_colheita || '',
+          ultima_aplicacao: farm.ultima_aplicacao || '',
+          observacoes: farm.observacoes || '',
+          tipo_cana: farm.tipo_cana || ''
+        });
       }
     }
   }, [selectedFarmId, farms, urlLat, urlLng]);
 
-  // Update form when block is selected
+  // Update block form when block is selected
   useEffect(() => {
     if (selectedBlock) {
-      setFormData({
+      setBlockFormData({
         nome: selectedBlock.nome || '',
-        cor: selectedBlock.cor || '#10B981',
-        data_plantio: selectedBlock.data_plantio || '',
-        ultima_aplicacao: selectedBlock.ultima_aplicacao?.data || '',
-        proxima_colheita: selectedBlock.proxima_colheita || '',
-        observacoes: ''
+        cor: selectedBlock.cor || '#10B981'
       });
       setSelectedColor(selectedBlock.cor || '#10B981');
     }
@@ -134,13 +152,8 @@ const AdvancedMapEditor: React.FC = () => {
         ...blockData,
         fazenda_id: selectedFarmId,
         coordenadas: JSON.stringify(blockData.coordinates),
-        nome: formData.nome || blockData.name,
-        cor: selectedColor,
-        data_plantio: formData.data_plantio || null,
-        proxima_colheita: formData.proxima_colheita || null,
-        ultima_aplicacao: formData.ultima_aplicacao ? {
-          data: formData.ultima_aplicacao
-        } : null
+        nome: blockFormData.nome || blockData.name,
+        cor: selectedColor
       };
 
       await createBlock(newBlock);
@@ -151,7 +164,7 @@ const AdvancedMapEditor: React.FC = () => {
       });
 
       setDrawingMode(null);
-      resetForm();
+      resetBlockForm();
     } catch (error) {
       toast({
         title: "Erro",
@@ -185,7 +198,7 @@ const AdvancedMapEditor: React.FC = () => {
     try {
       await deleteBlock(blockId);
       setSelectedBlock(null);
-      resetForm();
+      resetBlockForm();
 
       toast({
         title: "Sucesso",
@@ -209,13 +222,8 @@ const AdvancedMapEditor: React.FC = () => {
     try {
       if (selectedBlock?.id) {
         await updateBlock(selectedBlock.id, {
-          nome: formData.nome,
-          cor: formData.cor,
-          data_plantio: formData.data_plantio || null,
-          proxima_colheita: formData.proxima_colheita || null,
-          ultima_aplicacao: formData.ultima_aplicacao ? {
-            data: formData.ultima_aplicacao
-          } : null
+          nome: blockFormData.nome,
+          cor: blockFormData.cor
         });
         
         toast({
@@ -226,11 +234,44 @@ const AdvancedMapEditor: React.FC = () => {
 
       setSelectedBlock(null);
       setDrawingMode(null);
-      resetForm();
+      resetBlockForm();
     } catch (error) {
       toast({
         title: "Erro",
         description: "Erro ao salvar bloco",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // New function to save farm data
+  const handleSaveFarm = async () => {
+    try {
+      if (!selectedFarmId) {
+        toast({
+          title: "Erro",
+          description: "Nenhuma fazenda selecionada",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      await updateFarm(selectedFarmId, {
+        data_plantio: farmFormData.data_plantio || null,
+        proxima_colheita: farmFormData.proxima_colheita || null,
+        ultima_aplicacao: farmFormData.ultima_aplicacao || null,
+        observacoes: farmFormData.observacoes || null,
+        tipo_cana: farmFormData.tipo_cana || null
+      });
+      
+      toast({
+        title: "Sucesso",
+        description: "Dados da fazenda salvos com sucesso!"
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao salvar dados da fazenda",
         variant: "destructive"
       });
     }
@@ -251,14 +292,10 @@ const AdvancedMapEditor: React.FC = () => {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
+  const resetBlockForm = () => {
+    setBlockFormData({
       nome: '',
-      cor: '#10B981',
-      data_plantio: '',
-      ultima_aplicacao: '',
-      proxima_colheita: '',
-      observacoes: ''
+      cor: '#10B981'
     });
     setSelectedColor('#10B981');
   };
@@ -588,7 +625,7 @@ const AdvancedMapEditor: React.FC = () => {
           <Card className="h-[calc(100vh-120px)] overflow-y-auto">
             <CardHeader>
               <CardTitle className="text-lg">
-                {selectedBlock ? 'Editar Bloco' : 'Novo Bloco'}
+                {selectedBlock ? 'Editar Bloco' : 'Dados da Fazenda'}
               </CardTitle>
             </CardHeader>
             
@@ -611,135 +648,216 @@ const AdvancedMapEditor: React.FC = () => {
                 </div>
               )}
 
-              {/* Form Fields */}
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="nome">Nome do Bloco</Label>
-                  <Input
-                    id="nome"
-                    value={formData.nome}
-                    onChange={(e) => setFormData({...formData, nome: e.target.value})}
-                    placeholder="Ex: Talhão A1, Bloco Norte..."
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="cor">Cor do Bloco</Label>
-                  <Select 
-                    value={formData.cor} 
-                    onValueChange={(value) => {
-                      setFormData({...formData, cor: value});
-                      setSelectedColor(value);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border shadow-lg z-50">
-                      {colorOptions.map((color) => (
-                        <SelectItem key={color.value} value={color.value}>
-                          <div className="flex items-center gap-3">
-                            <div 
-                              className="w-4 h-4 rounded-full border border-gray-300"
-                              style={{ backgroundColor: color.value }}
-                            />
-                            <div>
-                              <span className="font-medium">{color.label}</span>
-                              <span className="text-xs text-gray-500 ml-2">{color.name}</span>
-                            </div>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="transparencia">Transparência</Label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={transparency}
-                    onChange={(e) => setTransparency(parseFloat(e.target.value))}
-                    className="w-full"
-                  />
-                  <span className="text-sm text-gray-600">{Math.round(transparency * 100)}%</span>
-                </div>
-
-                <Separator />
-
-                <div>
-                  <Label htmlFor="data_plantio">Data do Plantio</Label>
-                  <Input
-                    id="data_plantio"
-                    type="date"
-                    value={formData.data_plantio}
-                    onChange={(e) => setFormData({...formData, data_plantio: e.target.value})}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="ultima_aplicacao">Última Aplicação</Label>
-                  <Input
-                    id="ultima_aplicacao"
-                    type="date"
-                    value={formData.ultima_aplicacao}
-                    onChange={(e) => setFormData({...formData, ultima_aplicacao: e.target.value})}
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="proxima_colheita">Próxima Colheita</Label>
-                  <Input
-                    id="proxima_colheita"
-                    type="date"
-                    value={formData.proxima_colheita}
-                    onChange={(e) => setFormData({...formData, proxima_colheita: e.target.value})}
-                  />
-                </div>
-
-                <Separator />
-
-                {/* Advanced Options */}
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="showNDVI"
-                      checked={showNDVI}
-                      onCheckedChange={(checked) => setShowNDVI(!!checked)}
+              {/* Block Form - Only when editing a block */}
+              {selectedBlock && (
+                <div className="space-y-4">
+                  <Separator />
+                  <h4 className="font-medium text-gray-900">Configurações do Bloco</h4>
+                  
+                  <div>
+                    <Label htmlFor="block_nome">Nome do Bloco</Label>
+                    <Input
+                      id="block_nome"
+                      value={blockFormData.nome}
+                      onChange={(e) => setBlockFormData({...blockFormData, nome: e.target.value})}
+                      placeholder="Ex: Talhão A1, Bloco Norte..."
                     />
-                    <Label htmlFor="showNDVI">Mostrar NDVI</Label>
                   </div>
-                </div>
 
-                <Separator />
+                  <div>
+                    <Label htmlFor="block_cor">Cor do Bloco</Label>
+                    <Select 
+                      value={blockFormData.cor} 
+                      onValueChange={(value) => {
+                        setBlockFormData({...blockFormData, cor: value});
+                        setSelectedColor(value);
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border shadow-lg z-50">
+                        {colorOptions.map((color) => (
+                          <SelectItem key={color.value} value={color.value}>
+                            <div className="flex items-center gap-3">
+                              <div 
+                                className="w-4 h-4 rounded-full border border-gray-300"
+                                style={{ backgroundColor: color.value }}
+                              />
+                              <div>
+                                <span className="font-medium">{color.label}</span>
+                                <span className="text-xs text-gray-500 ml-2">{color.name}</span>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                {/* Action Buttons */}
-                <div className="space-y-2">
                   <Button 
                     onClick={handleSaveBlock}
                     className="w-full bg-green-600 hover:bg-green-700"
-                    disabled={!selectedBlock}
                   >
                     <Save className="w-4 h-4 mr-2" />
-                    Salvar Alterações
+                    Salvar Bloco
                   </Button>
+                </div>
+              )}
+
+              {/* Farm Form - Always visible when farm is selected */}
+              {!selectedBlock && selectedFarmId && (
+                <div className="space-y-4">
+                  <h4 className="font-medium text-gray-900">Informações da Fazenda</h4>
+
+                  <div>
+                    <Label htmlFor="tipo_cana">Tipo de Cana</Label>
+                    <Input
+                      id="tipo_cana"
+                      value={farmFormData.tipo_cana}
+                      onChange={(e) => setFarmFormData({...farmFormData, tipo_cana: e.target.value})}
+                      placeholder="SP80-1842, RB92579, etc."
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="data_plantio">Data do Plantio</Label>
+                    <Input
+                      id="data_plantio"
+                      type="date"
+                      value={farmFormData.data_plantio}
+                      onChange={(e) => setFarmFormData({...farmFormData, data_plantio: e.target.value})}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="ultima_aplicacao">Última Aplicação</Label>
+                    <Input
+                      id="ultima_aplicacao"
+                      type="date"
+                      value={farmFormData.ultima_aplicacao}
+                      onChange={(e) => setFarmFormData({...farmFormData, ultima_aplicacao: e.target.value})}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="proxima_colheita">Próxima Colheita</Label>
+                    <Input
+                      id="proxima_colheita"
+                      type="date"
+                      value={farmFormData.proxima_colheita}
+                      onChange={(e) => setFarmFormData({...farmFormData, proxima_colheita: e.target.value})}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="observacoes">Observações</Label>
+                    <Input
+                      id="observacoes"
+                      value={farmFormData.observacoes}
+                      onChange={(e) => setFarmFormData({...farmFormData, observacoes: e.target.value})}
+                      placeholder="Observações gerais sobre a fazenda"
+                    />
+                  </div>
+
+                  <Button 
+                    onClick={handleSaveFarm}
+                    className="w-full bg-green-600 hover:bg-green-700"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Salvar Dados da Fazenda
+                  </Button>
+                </div>
+              )}
+
+              {/* Drawing controls */}
+              {!selectedBlock && (
+                <div className="space-y-4">
+                  <Separator />
+                  <h4 className="font-medium text-gray-900">Novo Bloco</h4>
                   
+                  <div>
+                    <Label htmlFor="new_block_nome">Nome do Novo Bloco</Label>
+                    <Input
+                      id="new_block_nome"
+                      value={blockFormData.nome}
+                      onChange={(e) => setBlockFormData({...blockFormData, nome: e.target.value})}
+                      placeholder="Ex: Talhão A1, Bloco Norte..."
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="new_block_cor">Cor do Novo Bloco</Label>
+                    <Select 
+                      value={selectedColor} 
+                      onValueChange={(value) => {
+                        setSelectedColor(value);
+                        setBlockFormData({...blockFormData, cor: value});
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border shadow-lg z-50">
+                        {colorOptions.map((color) => (
+                          <SelectItem key={color.value} value={color.value}>
+                            <div className="flex items-center gap-3">
+                              <div 
+                                className="w-4 h-4 rounded-full border border-gray-300"
+                                style={{ backgroundColor: color.value }}
+                              />
+                              <div>
+                                <span className="font-medium">{color.label}</span>
+                                <span className="text-xs text-gray-500 ml-2">{color.name}</span>
+                              </div>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="transparencia">Transparência</Label>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={transparency}
+                      onChange={(e) => setTransparency(parseFloat(e.target.value))}
+                      className="w-full"
+                    />
+                    <span className="text-sm text-gray-600">{Math.round(transparency * 100)}%</span>
+                  </div>
+
+                  <Separator />
+
+                  {/* Advanced Options */}
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="showNDVI"
+                        checked={showNDVI}
+                        onCheckedChange={(checked) => setShowNDVI(!!checked)}
+                      />
+                      <Label htmlFor="showNDVI">Mostrar NDVI</Label>
+                    </div>
+                  </div>
+
                   <Button 
                     variant="outline" 
                     onClick={() => {
                       setSelectedBlock(null);
                       setDrawingMode(null);
-                      resetForm();
+                      resetBlockForm();
                     }}
                     className="w-full"
                   >
                     Cancelar
                   </Button>
                 </div>
-              </div>
+              )}
 
               {/* Instructions */}
               <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
@@ -750,6 +868,7 @@ const AdvancedMapEditor: React.FC = () => {
                   <li>• Clique em blocos existentes para editar</li>
                   <li>• Use "Modo Impressão" antes de exportar PDF</li>
                   <li>• Busque por endereços na barra de pesquisa</li>
+                  <li>• Dados da fazenda são salvos diretamente na fazenda</li>
                 </ul>
               </div>
             </CardContent>
