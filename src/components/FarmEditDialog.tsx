@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from './ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { LocationSearch } from './mapEditor/LocationSearch';
+import LocationSearch from './mapEditor/LocationSearch';
 import { Tables } from '@/integrations/supabase/types';
 
 type Farm = Tables<'fazendas'>;

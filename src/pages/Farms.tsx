@@ -15,7 +15,7 @@ import {
 } from '../components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useFarms } from '../hooks/useFarms';
-import { LocationSearch } from '../components/mapEditor/LocationSearch';
+import LocationSearch from '../components/mapEditor/LocationSearch';
 import FarmEditDialog from '../components/FarmEditDialog';
 import { Tables } from '@/integrations/supabase/types';
 
