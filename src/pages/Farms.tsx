@@ -32,7 +32,9 @@ const Farms: React.FC = () => {
     area_total: '',
     tipo_cana: '',
     cep: '',
-    numero_fazenda: ''
+    numero_fazenda: '',
+    latitude: null as number | null,
+    longitude: null as number | null
   });
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -69,8 +71,17 @@ const Farms: React.FC = () => {
   };
 
   const handleLocationSelect = (lat: number, lon: number) => {
-    // Implementar se necessário a atualização das coordenadas
     console.log('Localização selecionada:', lat, lon);
+    setNewFarm(prev => ({
+      ...prev,
+      latitude: lat,
+      longitude: lon
+    }));
+    
+    toast({
+      title: "Localização selecionada",
+      description: `Coordenadas: ${lat.toFixed(6)}, ${lon.toFixed(6)}`
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -89,11 +100,15 @@ const Farms: React.FC = () => {
         return;
       }
 
-      // Simulate geolocation API call for coordinates
-      const mockCoords = {
-        latitude: -21.1775 + (Math.random() - 0.5) * 0.1,
-        longitude: -47.8103 + (Math.random() - 0.5) * 0.1
-      };
+      // Use as coordenadas do LocationSearch se disponíveis, senão gere mock
+      let latitude = newFarm.latitude;
+      let longitude = newFarm.longitude;
+      
+      if (!latitude || !longitude) {
+        // Simulate geolocation API call for coordinates (fallback)
+        latitude = -21.1775 + (Math.random() - 0.5) * 0.1;
+        longitude = -47.8103 + (Math.random() - 0.5) * 0.1;
+      }
 
       const farmData = {
         nome: newFarm.nome,
@@ -102,15 +117,24 @@ const Farms: React.FC = () => {
         tipo_cana: newFarm.tipo_cana,
         cep: newFarm.cep,
         numero_fazenda: newFarm.numero_fazenda,
-        latitude: mockCoords.latitude,
-        longitude: mockCoords.longitude,
+        latitude: latitude,
+        longitude: longitude,
         cliente_id: null  // Campo obrigatório do Supabase, mas nullable
       };
 
       console.log('Enviando dados da fazenda:', farmData);
       await createFarm(farmData);
       
-      setNewFarm({ nome: '', localizacao: '', area_total: '', tipo_cana: '', cep: '', numero_fazenda: '' });
+      setNewFarm({ 
+        nome: '', 
+        localizacao: '', 
+        area_total: '', 
+        tipo_cana: '', 
+        cep: '', 
+        numero_fazenda: '',
+        latitude: null,
+        longitude: null
+      });
       setIsDialogOpen(false);
       
       toast({
@@ -227,6 +251,12 @@ const Farms: React.FC = () => {
                   className="mt-2"
                   required
                 />
+                
+                {newFarm.latitude && newFarm.longitude && (
+                  <div className="mt-2 text-xs text-gray-500">
+                    Coordenadas salvas: {newFarm.latitude.toFixed(6)}, {newFarm.longitude.toFixed(6)}
+                  </div>
+                )}
               </div>
 
               <div>

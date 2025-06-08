@@ -38,7 +38,9 @@ const FarmEditDialog: React.FC<FarmEditDialogProps> = ({
     area_total: '',
     tipo_cana: '',
     cep: '',
-    numero_fazenda: ''
+    numero_fazenda: '',
+    latitude: null as number | null,
+    longitude: null as number | null
   });
 
   useEffect(() => {
@@ -49,7 +51,9 @@ const FarmEditDialog: React.FC<FarmEditDialogProps> = ({
         area_total: farm.area_total?.toString() || '',
         tipo_cana: farm.tipo_cana || '',
         cep: farm.cep || '',
-        numero_fazenda: farm.numero_fazenda || ''
+        numero_fazenda: farm.numero_fazenda || '',
+        latitude: farm.latitude ? Number(farm.latitude) : null,
+        longitude: farm.longitude ? Number(farm.longitude) : null
       });
     }
   }, [farm]);
@@ -83,6 +87,20 @@ const FarmEditDialog: React.FC<FarmEditDialogProps> = ({
     }
   };
 
+  const handleLocationSelect = (lat: number, lon: number) => {
+    console.log('Coordenadas selecionadas:', lat, lon);
+    setFormData(prev => ({
+      ...prev,
+      latitude: lat,
+      longitude: lon
+    }));
+    
+    toast({
+      title: "Localização selecionada",
+      description: `Coordenadas: ${lat.toFixed(6)}, ${lon.toFixed(6)}`
+    });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -104,7 +122,9 @@ const FarmEditDialog: React.FC<FarmEditDialogProps> = ({
         area_total: areaValue,
         tipo_cana: formData.tipo_cana,
         cep: formData.cep,
-        numero_fazenda: formData.numero_fazenda
+        numero_fazenda: formData.numero_fazenda,
+        latitude: formData.latitude,
+        longitude: formData.longitude
       };
 
       await onSave(updateData);
@@ -122,11 +142,6 @@ const FarmEditDialog: React.FC<FarmEditDialogProps> = ({
         variant: "destructive"
       });
     }
-  };
-
-  const handleLocationSelect = (lat: number, lon: number) => {
-    // Atualizar coordenadas se necessário
-    console.log('Localização selecionada:', lat, lon);
   };
 
   return (
@@ -181,6 +196,12 @@ const FarmEditDialog: React.FC<FarmEditDialogProps> = ({
               className="mt-2"
               required
             />
+            
+            {formData.latitude && formData.longitude && (
+              <div className="mt-2 text-xs text-gray-500">
+                Coordenadas salvas: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
+              </div>
+            )}
           </div>
 
           <div>
