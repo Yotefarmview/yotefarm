@@ -84,6 +84,7 @@ export type Database = {
         Row: {
           area_total: number | null
           atualizado_em: string
+          cep: string | null
           cliente_id: string | null
           criado_em: string
           id: string
@@ -91,11 +92,13 @@ export type Database = {
           localizacao: string | null
           longitude: number | null
           nome: string
+          numero_fazenda: string | null
           tipo_cana: string | null
         }
         Insert: {
           area_total?: number | null
           atualizado_em?: string
+          cep?: string | null
           cliente_id?: string | null
           criado_em?: string
           id?: string
@@ -103,11 +106,13 @@ export type Database = {
           localizacao?: string | null
           longitude?: number | null
           nome: string
+          numero_fazenda?: string | null
           tipo_cana?: string | null
         }
         Update: {
           area_total?: number | null
           atualizado_em?: string
+          cep?: string | null
           cliente_id?: string | null
           criado_em?: string
           id?: string
@@ -115,6 +120,7 @@ export type Database = {
           localizacao?: string | null
           longitude?: number | null
           nome?: string
+          numero_fazenda?: string | null
           tipo_cana?: string | null
         }
         Relationships: []

@@ -44,6 +44,24 @@ export const useFarms = () => {
     }
   };
 
+  const updateFarm = async (id: string, farmData: Partial<Farm>) => {
+    try {
+      const { data, error } = await supabase
+        .from('fazendas')
+        .update(farmData)
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      setFarms(prev => prev.map(farm => farm.id === id ? data : farm));
+      return data;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao atualizar fazenda');
+      throw err;
+    }
+  };
+
   useEffect(() => {
     fetchFarms();
   }, []);
@@ -53,6 +71,7 @@ export const useFarms = () => {
     loading,
     error,
     createFarm,
+    updateFarm,
     refetch: fetchFarms
   };
 };

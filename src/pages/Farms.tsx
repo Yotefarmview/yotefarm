@@ -15,20 +15,63 @@ import {
 } from '../components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { useFarms } from '../hooks/useFarms';
+import { LocationSearch } from '../components/mapEditor/LocationSearch';
+import FarmEditDialog from '../components/FarmEditDialog';
+import { Tables } from '@/integrations/supabase/types';
+
+type Farm = Tables<'fazendas'>;
 
 const Farms: React.FC = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
-  const { farms, loading, error, createFarm } = useFarms();
+  const { farms, loading, error, createFarm, updateFarm } = useFarms();
 
   const [newFarm, setNewFarm] = useState({
     nome: '',
     localizacao: '',
     area_total: '',
-    tipo_cana: ''
+    tipo_cana: '',
+    cep: '',
+    numero_fazenda: ''
   });
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingFarm, setEditingFarm] = useState<Farm | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+
+  const handleCepChange = async (cep: string) => {
+    setNewFarm({...newFarm, cep});
+    
+    // Remove caracteres não numéricos
+    const cleanCep = cep.replace(/\D/g, '');
+    
+    if (cleanCep.length === 8) {
+      try {
+        const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+        const data = await response.json();
+        
+        if (!data.erro) {
+          const endereco = `${data.logradouro}, ${data.bairro}, ${data.localidade} - ${data.uf}`;
+          setNewFarm(prev => ({
+            ...prev,
+            localizacao: endereco
+          }));
+          
+          toast({
+            title: "CEP encontrado",
+            description: `Endereço atualizado: ${endereco}`
+          });
+        }
+      } catch (error) {
+        console.error('Erro ao buscar CEP:', error);
+      }
+    }
+  };
+
+  const handleLocationSelect = (lat: number, lon: number) => {
+    // Implementar se necessário a atualização das coordenadas
+    console.log('Localização selecionada:', lat, lon);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +100,8 @@ const Farms: React.FC = () => {
         localizacao: newFarm.localizacao,
         area_total: areaValue,
         tipo_cana: newFarm.tipo_cana,
+        cep: newFarm.cep,
+        numero_fazenda: newFarm.numero_fazenda,
         latitude: mockCoords.latitude,
         longitude: mockCoords.longitude,
         cliente_id: null  // Campo obrigatório do Supabase, mas nullable
@@ -65,7 +110,7 @@ const Farms: React.FC = () => {
       console.log('Enviando dados da fazenda:', farmData);
       await createFarm(farmData);
       
-      setNewFarm({ nome: '', localizacao: '', area_total: '', tipo_cana: '' });
+      setNewFarm({ nome: '', localizacao: '', area_total: '', tipo_cana: '', cep: '', numero_fazenda: '' });
       setIsDialogOpen(false);
       
       toast({
@@ -79,6 +124,17 @@ const Farms: React.FC = () => {
         description: `Erro ao criar fazenda: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
         variant: "destructive"
       });
+    }
+  };
+
+  const handleEditFarm = (farm: Farm) => {
+    setEditingFarm(farm);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async (farmData: Partial<Farm>) => {
+    if (editingFarm) {
+      await updateFarm(editingFarm.id, farmData);
     }
   };
 
@@ -135,16 +191,44 @@ const Farms: React.FC = () => {
                   required
                 />
               </div>
+              
+              <div>
+                <Label htmlFor="numero_fazenda">Número da Fazenda</Label>
+                <Input
+                  id="numero_fazenda"
+                  value={newFarm.numero_fazenda}
+                  onChange={(e) => setNewFarm({...newFarm, numero_fazenda: e.target.value})}
+                  placeholder="Ex: FAZ001"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="cep">CEP</Label>
+                <Input
+                  id="cep"
+                  value={newFarm.cep}
+                  onChange={(e) => handleCepChange(e.target.value)}
+                  placeholder="00000-000"
+                  maxLength={9}
+                />
+              </div>
+
               <div>
                 <Label htmlFor="localizacao">{t('farms.location')}</Label>
+                <LocationSearch
+                  onLocationSelect={handleLocationSelect}
+                  placeholder="Digite o endereço ou use o CEP acima"
+                />
                 <Input
                   id="localizacao"
                   value={newFarm.localizacao}
                   onChange={(e) => setNewFarm({...newFarm, localizacao: e.target.value})}
-                  placeholder="Cidade, Estado"
+                  placeholder="Endereço completo"
+                  className="mt-2"
                   required
                 />
               </div>
+
               <div>
                 <Label htmlFor="area_total">{t('farms.totalArea')} (hectares)</Label>
                 <Input
@@ -158,6 +242,7 @@ const Farms: React.FC = () => {
                   required
                 />
               </div>
+
               <div>
                 <Label htmlFor="tipo_cana">{t('farms.caneType')}</Label>
                 <Input
@@ -168,6 +253,7 @@ const Farms: React.FC = () => {
                   required
                 />
               </div>
+
               <Button type="submit" className="w-full bg-green-600 hover:bg-green-700">
                 {t('farms.save')}
               </Button>
@@ -175,6 +261,14 @@ const Farms: React.FC = () => {
           </DialogContent>
         </Dialog>
       </motion.div>
+
+      {/* Edit Dialog */}
+      <FarmEditDialog
+        farm={editingFarm}
+        open={isEditDialogOpen}
+        onOpenChange={setIsEditDialogOpen}
+        onSave={handleSaveEdit}
+      />
 
       {/* Farms Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -191,10 +285,20 @@ const Farms: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900">
                   {farm.nome}
                 </h3>
+                {farm.numero_fazenda && (
+                  <p className="text-sm text-gray-500">
+                    Fazenda: {farm.numero_fazenda}
+                  </p>
+                )}
                 <div className="flex items-center gap-1 text-gray-500 text-sm mt-1">
                   <MapPin className="w-4 h-4" />
                   {farm.localizacao}
                 </div>
+                {farm.cep && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    CEP: {farm.cep}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -222,7 +326,12 @@ const Farms: React.FC = () => {
                 <Eye className="w-4 h-4 mr-2" />
                 {t('farms.view')}
               </Button>
-              <Button variant="outline" size="sm" className="flex-1">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex-1"
+                onClick={() => handleEditFarm(farm)}
+              >
                 <Edit className="w-4 h-4 mr-2" />
                 {t('farms.edit')}
               </Button>
