@@ -46,7 +46,8 @@ const Farms: React.FC = () => {
         area_total: parseFloat(newFarm.area_total),
         tipo_cana: newFarm.tipo_cana,
         latitude: mockCoords.latitude,
-        longitude: mockCoords.longitude
+        longitude: mockCoords.longitude,
+        cliente_id: null  // Campo obrigatório do Supabase, mas nullable
       };
 
       await createFarm(farmData);
