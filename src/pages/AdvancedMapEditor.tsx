@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
@@ -17,6 +18,20 @@ import { useBlocks } from '../hooks/useBlocks';
 import { useFarms } from '../hooks/useFarms';
 import jsPDF from 'jspdf';
 
+// Extended farm type to include the new fields
+interface ExtendedFarm {
+  id: string;
+  nome: string;
+  latitude?: number;
+  longitude?: number;
+  data_plantio?: string;
+  proxima_colheita?: string;
+  ultima_aplicacao?: string;
+  observacoes?: string;
+  tipo_cana?: string;
+  [key: string]: any; // Allow additional properties
+}
+
 const AdvancedMapEditor: React.FC = () => {
   const { t } = useTranslation();
   const { toast } = useToast();
@@ -32,7 +47,7 @@ const AdvancedMapEditor: React.FC = () => {
   const { farms, updateFarm } = useFarms();
 
   const [selectedBlock, setSelectedBlock] = useState<any>(null);
-  const [currentFarm, setCurrentFarm] = useState<any>(null);
+  const [currentFarm, setCurrentFarm] = useState<ExtendedFarm | null>(null);
   
   // Map states
   const [showSatellite, setShowSatellite] = useState(false);
@@ -82,7 +97,7 @@ const AdvancedMapEditor: React.FC = () => {
     newSearchParams.set('fazenda', farmId);
     setSearchParams(newSearchParams);
     
-    const farm = farms.find(f => f.id === farmId);
+    const farm = farms.find(f => f.id === farmId) as ExtendedFarm;
     if (farm) {
       setCurrentFarm(farm);
       if (farm.latitude && farm.longitude) {
@@ -91,11 +106,11 @@ const AdvancedMapEditor: React.FC = () => {
       
       // Load farm data into form
       setFarmFormData({
-        data_plantio: farm.data_plantio || '',
-        proxima_colheita: farm.proxima_colheita || '',
-        ultima_aplicacao: farm.ultima_aplicacao || '',
-        observacoes: farm.observacoes || '',
-        tipo_cana: farm.tipo_cana || ''
+        data_plantio: (farm as any).data_plantio || '',
+        proxima_colheita: (farm as any).proxima_colheita || '',
+        ultima_aplicacao: (farm as any).ultima_aplicacao || '',
+        observacoes: (farm as any).observacoes || '',
+        tipo_cana: (farm as any).tipo_cana || ''
       });
     }
   };
@@ -107,7 +122,7 @@ const AdvancedMapEditor: React.FC = () => {
     }
     
     if (selectedFarmId && farms.length > 0) {
-      const farm = farms.find(f => f.id === selectedFarmId);
+      const farm = farms.find(f => f.id === selectedFarmId) as ExtendedFarm;
       if (farm) {
         setCurrentFarm(farm);
         if (farm.latitude && farm.longitude && !urlLat && !urlLng) {
@@ -116,11 +131,11 @@ const AdvancedMapEditor: React.FC = () => {
         
         // Load farm data into form
         setFarmFormData({
-          data_plantio: farm.data_plantio || '',
-          proxima_colheita: farm.proxima_colheita || '',
-          ultima_aplicacao: farm.ultima_aplicacao || '',
-          observacoes: farm.observacoes || '',
-          tipo_cana: farm.tipo_cana || ''
+          data_plantio: (farm as any).data_plantio || '',
+          proxima_colheita: (farm as any).proxima_colheita || '',
+          ultima_aplicacao: (farm as any).ultima_aplicacao || '',
+          observacoes: (farm as any).observacoes || '',
+          tipo_cana: (farm as any).tipo_cana || ''
         });
       }
     }
@@ -262,7 +277,7 @@ const AdvancedMapEditor: React.FC = () => {
         ultima_aplicacao: farmFormData.ultima_aplicacao || null,
         observacoes: farmFormData.observacoes || null,
         tipo_cana: farmFormData.tipo_cana || null
-      });
+      } as any);
       
       toast({
         title: "Sucesso",

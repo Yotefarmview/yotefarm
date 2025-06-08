@@ -87,13 +87,17 @@ export type Database = {
           cep: string | null
           cliente_id: string | null
           criado_em: string
+          data_plantio: string | null
           id: string
           latitude: number | null
           localizacao: string | null
           longitude: number | null
           nome: string
           numero_fazenda: string | null
+          observacoes: string | null
+          proxima_colheita: string | null
           tipo_cana: string | null
+          ultima_aplicacao: string | null
         }
         Insert: {
           area_total?: number | null
@@ -101,13 +105,17 @@ export type Database = {
           cep?: string | null
           cliente_id?: string | null
           criado_em?: string
+          data_plantio?: string | null
           id?: string
           latitude?: number | null
           localizacao?: string | null
           longitude?: number | null
           nome: string
           numero_fazenda?: string | null
+          observacoes?: string | null
+          proxima_colheita?: string | null
           tipo_cana?: string | null
+          ultima_aplicacao?: string | null
         }
         Update: {
           area_total?: number | null
@@ -115,13 +123,17 @@ export type Database = {
           cep?: string | null
           cliente_id?: string | null
           criado_em?: string
+          data_plantio?: string | null
           id?: string
           latitude?: number | null
           localizacao?: string | null
           longitude?: number | null
           nome?: string
           numero_fazenda?: string | null
+          observacoes?: string | null
+          proxima_colheita?: string | null
           tipo_cana?: string | null
+          ultima_aplicacao?: string | null
         }
         Relationships: []
       }
