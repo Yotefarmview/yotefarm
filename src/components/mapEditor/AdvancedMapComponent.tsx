@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Map, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
@@ -8,7 +7,7 @@ import VectorLayer from 'ol/layer/Vector';
 import VectorSource from 'ol/source/Vector';
 import { Draw, Modify, Snap, Select } from 'ol/interaction';
 import { Fill, Stroke, Style, Text } from 'ol/style';
-import { Polygon } from 'ol/geom';
+import { Polygon, LineString } from 'ol/geom';
 import { getArea, getLength } from 'ol/sphere';
 import { Feature } from 'ol';
 import { fromLonLat, toLonLat } from 'ol/proj';
@@ -20,7 +19,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select as UISelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Save, X, Edit2, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
+import { Save, X, Edit2, Trash2, Ruler } from 'lucide-react';
 import 'ol/ol.css';
 
 interface BlockData {
@@ -36,6 +37,14 @@ interface BlockData {
   coordinates: number[][];
 }
 
+interface MeasurementData {
+  id?: string;
+  name: string;
+  distance: number;
+  coordinates: number[][];
+  isDrain: boolean;
+}
+
 interface AdvancedMapComponentProps {
   blocks: any[];
   selectedColor: string;
@@ -44,7 +53,7 @@ interface AdvancedMapComponentProps {
   showBackground: boolean;
   printMode: boolean;
   showNDVI: boolean;
-  drawingMode: 'polygon' | 'edit' | 'delete' | null;
+  drawingMode: 'polygon' | 'edit' | 'delete' | 'measure' | null;
   onPolygonDrawn: (blockData: BlockData) => void;
   onBlockUpdate: (blockId: string, updates: Partial<BlockData>) => void;
   onBlockDelete: (blockId: string) => void;
@@ -72,13 +81,19 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Map | null>(null);
   const vectorSource = useRef<VectorSource | null>(null);
+  const measurementSource = useRef<VectorSource | null>(null);
   const [currentDraw, setCurrentDraw] = useState<Draw | null>(null);
   const [currentModify, setCurrentModify] = useState<Modify | null>(null);
   const [currentSelect, setCurrentSelect] = useState<Select | null>(null);
   const [editingBlock, setEditingBlock] = useState<any>(null);
-  const [editForm, setEditForm] = useState({ name: '', color: '#10B981' });
+  const [editForm, setEditForm] = useState({ name: '', color: '#10B981', transparency: 0.4 });
   const [mapReady, setMapReady] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
+  
+  // Measurement states
+  const [editingMeasurement, setEditingMeasurement] = useState<MeasurementData | null>(null);
+  const [measurementForm, setMeasurementForm] = useState({ name: '', isDrain: false });
+  const [measurements, setMeasurements] = useState<MeasurementData[]>([]);
 
   // Color options for blocks
   const colorOptions = [
@@ -114,6 +129,29 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         textAlign: 'center',
         textBaseline: 'middle',
       }) : undefined,
+    });
+  }, []);
+
+  // Criar estilo para medições
+  const createMeasurementStyle = useCallback((measurement: MeasurementData, isSelected?: boolean) => {
+    const color = measurement.isDrain ? '#3B82F6' : '#FF6B35';
+    const displayText = `${measurement.name}\n${measurement.distance.toFixed(2)}m`;
+    
+    return new Style({
+      stroke: new Stroke({
+        color: isSelected ? '#FFD700' : color,
+        width: isSelected ? 4 : 3,
+        lineDash: measurement.isDrain ? [10, 5] : undefined,
+      }),
+      text: new Text({
+        text: displayText,
+        font: 'bold 12px Arial, sans-serif',
+        fill: new Fill({ color: '#000' }),
+        stroke: new Stroke({ color: '#fff', width: 3 }),
+        offsetY: -10,
+        textAlign: 'center',
+        textBaseline: 'middle',
+      }),
     });
   }, []);
 
@@ -155,17 +193,18 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   }, []);
 
   // Update specific feature style and properties
-  const updateFeatureStyle = useCallback((feature: Feature, name: string, color: string, area_acres?: number, isSelected?: boolean) => {
+  const updateFeatureStyle = useCallback((feature: Feature, name: string, color: string, transparency: number, area_acres?: number, isSelected?: boolean) => {
     const style = createBlockStyle(color, transparency, name, area_acres, isSelected);
     feature.setStyle(style);
     
     // Update feature properties
     feature.set('name', name);
     feature.set('color', color);
+    feature.set('transparency', transparency);
     feature.set('isSelected', isSelected);
     
-    console.log(`Updated feature style - ID: ${feature.get('blockId')}, Name: ${name}, Color: ${color}, Selected: ${isSelected}`);
-  }, [createBlockStyle, transparency]);
+    console.log(`Updated feature style - ID: ${feature.get('blockId')}, Name: ${name}, Color: ${color}, Transparency: ${transparency}, Selected: ${isSelected}`);
+  }, [createBlockStyle]);
 
   // Clear all selections
   const clearAllSelections = useCallback(() => {
@@ -177,6 +216,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         feature, 
         blockData?.nome || feature.get('name') || '',
         blockData?.cor || feature.get('color') || '#10B981',
+        blockData?.transparencia || feature.get('transparency') || 0.4,
         blockData?.area_acres,
         false
       );
@@ -184,7 +224,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     
     setSelectedFeature(null);
     setEditingBlock(null);
-    setEditForm({ name: '', color: '#10B981' });
+    setEditForm({ name: '', color: '#10B981', transparency: 0.4 });
+    setEditingMeasurement(null);
+    setMeasurementForm({ name: '', isDrain: false });
   }, [updateFeatureStyle]);
 
   // Handle block selection for editing
@@ -203,7 +245,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       setEditingBlock(blockData);
       setEditForm({
         name: blockData.nome || '',
-        color: blockData.cor || '#10B981'
+        color: blockData.cor || '#10B981',
+        transparency: blockData.transparencia || 0.4
       });
       
       // Update style to show selection
@@ -211,6 +254,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         feature,
         blockData.nome || '',
         blockData.cor || '#10B981',
+        blockData.transparencia || 0.4,
         blockData.area_acres,
         true
       );
@@ -219,6 +263,18 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       console.log('Block selected for editing:', blockId, blockData.nome);
     }
   }, [clearAllSelections, updateFeatureStyle, onBlockSelect]);
+
+  // Handle measurement selection
+  const handleMeasurementClick = useCallback((feature: Feature) => {
+    const measurementData = feature.get('measurementData');
+    if (measurementData) {
+      setEditingMeasurement(measurementData);
+      setMeasurementForm({
+        name: measurementData.name,
+        isDrain: measurementData.isDrain
+      });
+    }
+  }, []);
 
   // Handle save edit - only update the selected feature
   const handleSaveEdit = useCallback(() => {
@@ -235,6 +291,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       selectedFeature,
       editForm.name,
       editForm.color,
+      editForm.transparency,
       editingBlock.area_acres,
       false // Remove selection after save
     );
@@ -243,7 +300,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     const updatedBlockData = {
       ...editingBlock,
       nome: editForm.name,
-      cor: editForm.color
+      cor: editForm.color,
+      transparencia: editForm.transparency
     };
     selectedFeature.set('blockData', updatedBlockData);
     
@@ -252,7 +310,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       name: editForm.name,
       nome: editForm.name,
       color: editForm.color,
-      cor: editForm.color
+      cor: editForm.color,
+      transparency: editForm.transparency,
+      transparencia: editForm.transparency
     });
 
     // Force refresh of vector source
@@ -262,9 +322,38 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
     // Clear selection
     setEditingBlock(null);
-    setEditForm({ name: '', color: '#10B981' });
+    setEditForm({ name: '', color: '#10B981', transparency: 0.4 });
     setSelectedFeature(null);
   }, [editingBlock, selectedFeature, editForm, onBlockUpdate, updateFeatureStyle]);
+
+  // Handle save measurement
+  const handleSaveMeasurement = useCallback(() => {
+    if (!editingMeasurement) return;
+
+    const updatedMeasurement = {
+      ...editingMeasurement,
+      name: measurementForm.name,
+      isDrain: measurementForm.isDrain
+    };
+
+    // Update measurements array
+    setMeasurements(prev => prev.map(m => 
+      m.id === editingMeasurement.id ? updatedMeasurement : m
+    ));
+
+    // Update feature style
+    if (measurementSource.current) {
+      const features = measurementSource.current.getFeatures();
+      const feature = features.find(f => f.get('measurementId') === editingMeasurement.id);
+      if (feature) {
+        feature.set('measurementData', updatedMeasurement);
+        feature.setStyle(createMeasurementStyle(updatedMeasurement));
+      }
+    }
+
+    setEditingMeasurement(null);
+    setMeasurementForm({ name: '', isDrain: false });
+  }, [editingMeasurement, measurementForm, createMeasurementStyle]);
 
   // Handle delete edit
   const handleDeleteEdit = useCallback(() => {
@@ -284,12 +373,34 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       
       // Clear selection
       setEditingBlock(null);
-      setEditForm({ name: '', color: '#10B981' });
+      setEditForm({ name: '', color: '#10B981', transparency: 0.4 });
       setSelectedFeature(null);
       
       console.log('Block deleted:', blockId);
     }
   }, [editingBlock, selectedFeature, onBlockDelete]);
+
+  // Handle delete measurement
+  const handleDeleteMeasurement = useCallback(() => {
+    if (!editingMeasurement) return;
+
+    if (confirm(`Tem certeza que deseja deletar a medição "${editingMeasurement.name}"?`)) {
+      // Remove from measurements array
+      setMeasurements(prev => prev.filter(m => m.id !== editingMeasurement.id));
+
+      // Remove from vector source
+      if (measurementSource.current) {
+        const features = measurementSource.current.getFeatures();
+        const feature = features.find(f => f.get('measurementId') === editingMeasurement.id);
+        if (feature) {
+          measurementSource.current.removeFeature(feature);
+        }
+      }
+
+      setEditingMeasurement(null);
+      setMeasurementForm({ name: '', isDrain: false });
+    }
+  }, [editingMeasurement]);
 
   // Handle cancel edit
   const handleCancelEdit = useCallback(() => {
@@ -303,9 +414,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     console.log('Inicializando mapa...');
 
     try {
-      // Criar VectorSource
+      // Criar VectorSources
       const newVectorSource = new VectorSource();
+      const newMeasurementSource = new VectorSource();
       vectorSource.current = newVectorSource;
+      measurementSource.current = newMeasurementSource;
       
       const vectorLayer = new VectorLayer({
         source: newVectorSource,
@@ -317,11 +430,20 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           
           return createBlockStyle(
             blockData?.cor || feature.get('color') || selectedColor,
-            transparency,
+            blockData?.transparencia || feature.get('transparency') || transparency,
             blockData?.nome || feature.get('name'),
             blockData?.area_acres,
             isSelected
           );
+        },
+      });
+
+      const measurementLayer = new VectorLayer({
+        source: newMeasurementSource,
+        style: (feature) => {
+          if (!(feature instanceof Feature)) return undefined;
+          const measurementData = feature.get('measurementData');
+          return measurementData ? createMeasurementStyle(measurementData) : undefined;
         },
       });
 
@@ -353,7 +475,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       
       const map = new Map({
         target: mapRef.current,
-        layers: [osmLayer, satelliteLayer, ndviLayer, vectorLayer],
+        layers: [osmLayer, satelliteLayer, ndviLayer, vectorLayer, measurementLayer],
         view: new View({
           center: fromLonLat(defaultCenter),
           zoom: 10,
@@ -361,14 +483,18 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }),
       });
 
-      // Add click event for block selection
+      // Add click event for feature selection
       map.on('click', (event) => {
         const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => {
           return feature instanceof Feature ? feature : null;
         });
         
-        if (feature && feature.get('blockData')) {
-          handleBlockClick(feature);
+        if (feature) {
+          if (feature.get('blockData')) {
+            handleBlockClick(feature);
+          } else if (feature.get('measurementData')) {
+            handleMeasurementClick(feature);
+          }
         } else {
           // Clicked on empty area, clear selection
           clearAllSelections();
@@ -391,6 +517,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           mapInstance.current = null;
         }
         vectorSource.current = null;
+        measurementSource.current = null;
         setMapReady(false);
       };
     } catch (error) {
@@ -541,6 +668,57 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       map.addInteraction(snap);
       setCurrentDraw(draw);
 
+    } else if (drawingMode === 'measure') {
+      // Modo medição - linhas retas
+      const draw = new Draw({
+        source: measurementSource.current!,
+        type: 'LineString',
+        style: new Style({
+          stroke: new Stroke({
+            color: '#FF6B35',
+            width: 3,
+          }),
+        }),
+      });
+
+      draw.on('drawend', (event) => {
+        const feature = event.feature;
+        const geometry = feature.getGeometry() as LineString;
+        
+        if (geometry) {
+          const coordinates = geometry.getCoordinates().map(coord => toLonLat(coord));
+          const distance = getLength(geometry);
+          
+          const measurementData: MeasurementData = {
+            id: `measure_${Date.now()}`,
+            name: `Medição ${measurements.length + 1}`,
+            distance,
+            coordinates,
+            isDrain: false
+          };
+
+          // Set properties for this new feature
+          feature.set('measurementId', measurementData.id);
+          feature.set('measurementData', measurementData);
+          feature.setStyle(createMeasurementStyle(measurementData));
+
+          // Add to measurements array
+          setMeasurements(prev => [...prev, measurementData]);
+
+          // Open edit form
+          setEditingMeasurement(measurementData);
+          setMeasurementForm({
+            name: measurementData.name,
+            isDrain: false
+          });
+
+          console.log('New measurement created:', measurementData);
+        }
+      });
+
+      map.addInteraction(draw);
+      setCurrentDraw(draw);
+
     } else if (drawingMode === 'edit') {
       // Modo edição
       const select = new Select({
@@ -652,7 +830,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       map.addInteraction(select);
       setCurrentSelect(select);
     }
-  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, updateFeatureStyle]);
+  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, updateFeatureStyle, createMeasurementStyle, measurements.length]);
 
   // Centralizar mapa em coordenadas específicas
   useEffect(() => {
@@ -697,14 +875,14 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }}
       />
       
-      {/* Quick Edit Panel */}
+      {/* Quick Edit Panel - Block */}
       {editingBlock && selectedFeature && (
         <div className="absolute top-4 right-4 z-50">
           <Card className="w-80 bg-white shadow-lg border">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Edit2 className="w-5 h-5" />
-                Edição Rápida
+                Edição Rápida - Bloco
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -744,6 +922,21 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
                     ))}
                   </SelectContent>
                 </UISelect>
+              </div>
+
+              <div>
+                <Label htmlFor="transparency-slider">
+                  Transparência: {Math.round(editForm.transparency * 100)}%
+                </Label>
+                <Slider
+                  id="transparency-slider"
+                  value={[editForm.transparency]}
+                  onValueChange={(value) => setEditForm({...editForm, transparency: value[0]})}
+                  max={1}
+                  min={0.1}
+                  step={0.1}
+                  className="w-full mt-2"
+                />
               </div>
 
               {/* Display block metrics - only acres */}
@@ -792,6 +985,88 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
               <div className="text-xs text-gray-500 pt-2">
                 <strong>Dica:</strong> Clique em qualquer bloco no mapa para editar rapidamente seu nome e cor.
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Quick Edit Panel - Measurement */}
+      {editingMeasurement && (
+        <div className="absolute top-4 right-4 z-50">
+          <Card className="w-80 bg-white shadow-lg border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Ruler className="w-5 h-5" />
+                Edição - Medição
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="measurement-name">Nome da Medição</Label>
+                <Input
+                  id="measurement-name"
+                  value={measurementForm.name}
+                  onChange={(e) => setMeasurementForm({...measurementForm, name: e.target.value})}
+                  placeholder="Digite o nome da medição"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="is-drain"
+                  checked={measurementForm.isDrain}
+                  onCheckedChange={(checked) => setMeasurementForm({...measurementForm, isDrain: !!checked})}
+                />
+                <Label htmlFor="is-drain">É um dreno (cor azul)</Label>
+              </div>
+
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="font-medium text-blue-900 mb-2">Dados da Medição</h4>
+                <div className="grid grid-cols-1 gap-2 text-sm">
+                  <div>
+                    <span className="text-blue-700">Distância:</span>
+                    <p className="font-medium">{editingMeasurement.distance.toFixed(2)} metros</p>
+                  </div>
+                  <div>
+                    <span className="text-blue-700">Tipo:</span>
+                    <p className="font-medium">{measurementForm.isDrain ? 'Dreno' : 'Medição'}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-2 pt-2">
+                <Button 
+                  onClick={handleSaveMeasurement}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  size="sm"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Salvar
+                </Button>
+                <Button 
+                  onClick={handleDeleteMeasurement}
+                  variant="destructive"
+                  size="sm"
+                  className="flex-1"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Deletar
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setEditingMeasurement(null);
+                    setMeasurementForm({ name: '', isDrain: false });
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="text-xs text-gray-500 pt-2">
+                <strong>Dica:</strong> Clique em qualquer medição no mapa para editar rapidamente.
               </div>
             </CardContent>
           </Card>

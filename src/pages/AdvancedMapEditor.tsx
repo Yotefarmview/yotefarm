@@ -56,7 +56,7 @@ const AdvancedMapEditor: React.FC = () => {
   const [showNDVI, setShowNDVI] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#10B981');
   const [transparency, setTransparency] = useState(0.4);
-  const [drawingMode, setDrawingMode] = useState<'polygon' | 'edit' | 'delete' | null>(null);
+  const [drawingMode, setDrawingMode] = useState<'polygon' | 'edit' | 'delete' | 'measure' | null>(null);
   
   // Location states
   const [centerCoordinates, setCenterCoordinates] = useState<[number, number] | undefined>();
@@ -168,7 +168,8 @@ const AdvancedMapEditor: React.FC = () => {
         fazenda_id: selectedFarmId,
         coordenadas: JSON.stringify(blockData.coordinates),
         nome: blockFormData.nome || blockData.name,
-        cor: selectedColor
+        cor: selectedColor,
+        transparencia: transparency
       };
 
       await createBlock(newBlock);
@@ -586,6 +587,15 @@ const AdvancedMapEditor: React.FC = () => {
                   </Button>
                   
                   <Button
+                    variant={drawingMode === 'measure' ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setDrawingMode(drawingMode === 'measure' ? null : 'measure')}
+                  >
+                    <Ruler className="w-4 h-4 mr-2" />
+                    Medir
+                  </Button>
+                  
+                  <Button
                     variant={drawingMode === 'edit' ? "default" : "outline"}
                     size="sm"
                     onClick={() => setDrawingMode(drawingMode === 'edit' ? null : 'edit')}
@@ -880,10 +890,12 @@ const AdvancedMapEditor: React.FC = () => {
                 <ul className="text-sm text-blue-700 space-y-1">
                   <li>• Selecione uma fazenda primeiro</li>
                   <li>• Use "Desenhar" para criar novos blocos</li>
-                  <li>• Clique em blocos existentes para editar</li>
+                  <li>• Use "Medir" para criar medições lineares</li>
+                  <li>• Clique em blocos/medições existentes para editar</li>
                   <li>• Use "Modo Impressão" antes de exportar PDF</li>
                   <li>• Busque por endereços na barra de pesquisa</li>
-                  <li>• Dados da fazenda são salvos diretamente na fazenda</li>
+                  <li>• Marque "É um dreno" para linhas azuis de água</li>
+                  <li>• Configure transparência ao editar blocos</li>
                 </ul>
               </div>
             </CardContent>
