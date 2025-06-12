@@ -44,8 +44,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center">
-            <Sprout className="w-5 h-5 text-white" />
+          <div className="w-8 h-8 flex items-center justify-center">
+            <img 
+              src="/lovable-uploads/20a7ed03-77fa-48cb-804f-8a07f663f025.png" 
+              alt="YOTE Farmview Logo" 
+              className="w-8 h-8 object-contain"
+            />
           </div>
           {!isCollapsed && (
             <motion.div
