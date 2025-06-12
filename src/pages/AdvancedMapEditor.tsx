@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
@@ -14,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import AdvancedMapComponent from '../components/mapEditor/AdvancedMapComponent';
 import LocationSearch from '../components/mapEditor/LocationSearch';
-import { useBlocks } from '../hooks/use-blocks';
+import { useBlocks } from '../hooks/useBlocks';
 import { useFarms } from '../hooks/useFarms';
 import jsPDF from 'jspdf';
 
