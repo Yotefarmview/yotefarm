@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
-import { Map as MapIcon, Save, Settings, Download, Upload, Navigation, Layers, FileText } from 'lucide-react';
+import { Map as MapIcon, Save, Settings, Download, Upload, Navigation, Layers, FileText, Ruler } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import AdvancedMapComponent from '../components/mapEditor/AdvancedMapComponent';
 import LocationSearch from '../components/mapEditor/LocationSearch';
-import { useBlocks } from '../hooks/useBlocks';
+import { useBlocks } from '../hooks/use-blocks';
 import { useFarms } from '../hooks/useFarms';
 import jsPDF from 'jspdf';
 

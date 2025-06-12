@@ -311,8 +311,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       nome: editForm.name,
       color: editForm.color,
       cor: editForm.color,
-      transparency: editForm.transparency,
-      transparencia: editForm.transparency
+      transparency: editForm.transparency
     });
 
     // Force refresh of vector source
