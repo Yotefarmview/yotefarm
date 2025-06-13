@@ -1,6 +1,4 @@
-
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
 import { Map as MapIcon, Save, Settings, Download, Upload, Navigation, Layers, FileText, Ruler } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
@@ -450,7 +448,20 @@ const AdvancedMapEditor: React.FC = () => {
     return bounds;
   };
 
-  // Função melhorada para exportar mapa em PDF com escala 1:5
+  // Função para formatar acres com casas decimais apropriadas
+  const formatAcres = (acres: number): string => {
+    if (acres === 0) return '0.00 acres';
+    
+    if (acres >= 100) {
+      return `${acres.toFixed(3)} acres`; // XXX.XXX format
+    } else if (acres >= 10) {
+      return `${acres.toFixed(2)} Acres`; // XX.XX format
+    } else {
+      return `${acres.toFixed(2)} acres`; // X.XX format
+    }
+  };
+
+  // Função melhorada para exportar mapa em PDF sem margem preta
   const exportMapToPDF = async () => {
     try {
       console.log('Iniciando exportação PDF...');
@@ -487,15 +498,6 @@ const AdvancedMapEditor: React.FC = () => {
 
       console.log('Bounds calculados com sucesso:', bounds);
 
-      // Ativar modo impressão e centralizar no mapa
-      setPrintMode(true);
-      
-      // Centralizar o mapa nos blocos
-      setCenterCoordinates([bounds.centerLng, bounds.centerLat]);
-      
-      // Aguardar um momento para o mapa centralizar
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
       // Criar PDF em orientação paisagem
       const pdf = new jsPDF({
         orientation: 'landscape',
@@ -522,32 +524,6 @@ const AdvancedMapEditor: React.FC = () => {
       pdf.setFontSize(10);
       pdf.text(`Centro: ${bounds.centerLat.toFixed(6)}°, ${bounds.centerLng.toFixed(6)}°`, 20, 45);
       
-      // Capturar o canvas do mapa
-      const mapContainer = document.querySelector('.ol-viewport') as HTMLElement;
-      if (!mapContainer) {
-        toast({
-          title: "Erro",
-          description: "Não foi possível capturar o mapa",
-          variant: "destructive"
-        });
-        setPrintMode(false);
-        return;
-      }
-
-      // Criar canvas para captura do mapa
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
-      if (!ctx) {
-        toast({
-          title: "Erro",
-          description: "Erro ao criar canvas",
-          variant: "destructive"
-        });
-        setPrintMode(false);
-        return;
-      }
-
       // Definir dimensões do mapa no PDF (escala 1:5)
       const mapStartY = 55;
       const availableWidth = pageWidth - 40;
@@ -563,24 +539,29 @@ const AdvancedMapEditor: React.FC = () => {
         mapWidth = availableHeight * boundsRatio;
       }
 
+      // Criar canvas para desenhar apenas os blocos (sem fundo preto)
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        toast({
+          title: "Erro",
+          description: "Erro ao criar canvas",
+          variant: "destructive"
+        });
+        return;
+      }
+
       // Configurar canvas com alta resolução
       const scale = 3; // Para melhor qualidade
       canvas.width = mapWidth * scale;
       canvas.height = mapHeight * scale;
       
-      // Desenhar fundo branco
-      ctx.fillStyle = 'white';
+      // Desenhar fundo BRANCO (não transparente)
+      ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
-      // Capturar todas as camadas do mapa
-      const mapCanvases = mapContainer.querySelectorAll('canvas');
-      mapCanvases.forEach(mapCanvas => {
-        if (mapCanvas.width > 0 && mapCanvas.height > 0) {
-          ctx.drawImage(mapCanvas, 0, 0, canvas.width, canvas.height);
-        }
-      });
-
-      // Desenhar blocos coloridos sobre o mapa
+      // Desenhar apenas os blocos coloridos (sem mapa de fundo)
       console.log('Desenhando blocos no PDF...');
       blocks.forEach((block, index) => {
         console.log(`Desenhando bloco ${index + 1}:`, block.nome || `Bloco ${index + 1}`);
@@ -615,13 +596,15 @@ const AdvancedMapEditor: React.FC = () => {
           
           ctx.closePath();
           
-          // Aplicar cor do bloco
+          // Aplicar cor do bloco com transparência configurada
           const blockColor = block.cor || '#10B981';
-          ctx.fillStyle = blockColor + '80'; // Adicionar transparência
+          const alpha = Math.round(transparency * 255).toString(16).padStart(2, '0');
+          ctx.fillStyle = blockColor + alpha;
           ctx.fill();
           
+          // Contorno mais sutil
           ctx.strokeStyle = blockColor;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 1;
           ctx.stroke();
           
           // Adicionar nome do bloco se houver
@@ -637,21 +620,16 @@ const AdvancedMapEditor: React.FC = () => {
             centerY /= coordinates.length;
             
             ctx.fillStyle = '#000000';
-            ctx.font = '16px Arial';
+            ctx.font = 'bold 14px Arial';
             ctx.textAlign = 'center';
             ctx.fillText(block.nome, centerX, centerY);
           }
         }
       });
 
-      // Adicionar imagem do mapa no PDF
+      // Adicionar imagem limpa no PDF (sem margem preta)
       const imgData = canvas.toDataURL('image/png', 1.0);
       pdf.addImage(imgData, 'PNG', 20, mapStartY, mapWidth, mapHeight);
-      
-      // Adicionar moldura ao redor do mapa
-      pdf.setDrawColor(0, 0, 0);
-      pdf.setLineWidth(0.5);
-      pdf.rect(20, mapStartY, mapWidth, mapHeight);
 
       // Adicionar informações técnicas abaixo do mapa
       let yPosition = mapStartY + mapHeight + 20;
@@ -664,9 +642,9 @@ const AdvancedMapEditor: React.FC = () => {
       pdf.setFontSize(10);
       pdf.setFont('helvetica', 'normal');
       
-      // Calcular área total
+      // Calcular área total com formatação correta
       const totalArea = blocks.reduce((sum, block) => sum + (block.area_acres || 0), 0);
-      pdf.text(`Área Total dos Blocos: ${totalArea.toFixed(4)} acres (${(totalArea * 4046.86).toFixed(2)} m²)`, 20, yPosition);
+      pdf.text(`Área Total dos Blocos: ${formatAcres(totalArea)} (${(totalArea * 4046.86).toFixed(2)} m²)`, 20, yPosition);
       yPosition += 8;
       
       pdf.text(`Número de Blocos: ${blocks.length}`, 20, yPosition);
@@ -675,7 +653,7 @@ const AdvancedMapEditor: React.FC = () => {
       pdf.text(`Fazenda: ${currentFarm?.nome || 'Não especificada'}`, 20, yPosition);
       yPosition += 15;
 
-      // Adicionar legenda dos blocos
+      // Adicionar legenda dos blocos com formatação correta
       if (blocks.length > 0) {
         pdf.setFontSize(12);
         pdf.setFont('helvetica', 'bold');
@@ -700,14 +678,14 @@ const AdvancedMapEditor: React.FC = () => {
           pdf.setFillColor(r, g, b);
           pdf.rect(20, yPosition - 3, 5, 5, 'F');
           
-          // Adicionar moldura ao quadrado
-          pdf.setDrawColor(0, 0, 0);
+          // Adicionar moldura sutil ao quadrado
+          pdf.setDrawColor(100, 100, 100);
           pdf.setLineWidth(0.1);
           pdf.rect(20, yPosition - 3, 5, 5);
           
-          // Adicionar texto da legenda
+          // Adicionar texto da legenda com formatação de acres correta
           pdf.setTextColor(0, 0, 0);
-          const blockInfo = `${block.nome || `Bloco ${index + 1}`} - ${(block.area_acres || 0).toFixed(4)} acres`;
+          const blockInfo = `${block.nome || `Bloco ${index + 1}`} - ${formatAcres(block.area_acres || 0)}`;
           pdf.text(blockInfo, 30, yPosition);
           yPosition += 8;
         });
@@ -727,9 +705,6 @@ const AdvancedMapEditor: React.FC = () => {
         title: "Sucesso",
         description: `PDF exportado com sucesso! ${blocks.length} blocos foram desenhados no mapa com escala 1:5.`
       });
-
-      // Desativar modo impressão
-      setPrintMode(false);
       
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
@@ -738,7 +713,6 @@ const AdvancedMapEditor: React.FC = () => {
         description: "Erro ao gerar PDF. Tente novamente.",
         variant: "destructive"
       });
-      setPrintMode(false);
     }
   };
 
@@ -794,7 +768,7 @@ const AdvancedMapEditor: React.FC = () => {
       // .shp - arquivo principal (geometria binária)
       const shpContent = new Uint8Array([
         0x00, 0x00, 0x27, 0x0A, // File code
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
         0x00, 0x00, 0x00, 0x32, // File length
         0x00, 0x00, 0x03, 0xE8, // Version
         0x00, 0x00, 0x00, 0x05  // Shape type (Polygon)
@@ -803,7 +777,7 @@ const AdvancedMapEditor: React.FC = () => {
       // .shx - arquivo de índice
       const shxContent = new Uint8Array([
         0x00, 0x00, 0x27, 0x0A, // File code
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x32, // File length
         0x00, 0x00, 0x03, 0xE8, // Version
         0x00, 0x00, 0x00, 0x05  // Shape type
@@ -1157,7 +1131,7 @@ CAMPOS DOS DADOS:
                     <div>
                       <span className="text-green-700">Área:</span>
                       <p className="font-medium">{selectedBlock.area_m2?.toFixed(2)} m²</p>
-                      <p className="font-medium">{selectedBlock.area_acres?.toFixed(4)} acres</p>
+                      <p className="font-medium">{formatAcres(selectedBlock.area_acres || 0)}</p>
                     </div>
                     <div>
                       <span className="text-green-700">Perímetro:</span>
@@ -1337,17 +1311,15 @@ CAMPOS DOS DADOS:
                   </div>
 
                   <div>
-                    <Label htmlFor="transparencia">Transparência</Label>
-                    <input
-                      type="range"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                      value={transparency}
-                      onChange={(e) => setTransparency(parseFloat(e.target.value))}
-                      className="w-full"
+                    <Label htmlFor="transparencia">Transparência: {Math.round(transparency * 100)}%</Label>
+                    <Slider
+                      value={[transparency]}
+                      onValueChange={(value) => setTransparency(value[0])}
+                      max={1}
+                      min={0.1}
+                      step={0.1}
+                      className="w-full mt-2"
                     />
-                    <span className="text-sm text-gray-600">{Math.round(transparency * 100)}%</span>
                   </div>
 
                   <Separator />
