@@ -169,7 +169,7 @@ const AdvancedMapEditor: React.FC = () => {
         coordenadas: JSON.stringify(blockData.coordinates),
         nome: blockFormData.nome || blockData.name,
         cor: selectedColor,
-        transparencia: transparency
+        transparency: transparency
       };
 
       await createBlock(newBlock);
@@ -323,47 +323,6 @@ const AdvancedMapEditor: React.FC = () => {
     }
   };
 
-  const exportGeoJSON = () => {
-    const features = blocks.map(block => {
-      let coordinates;
-      if (typeof block.coordenadas === 'string') {
-        coordinates = JSON.parse(block.coordenadas);
-      } else if (Array.isArray(block.coordenadas)) {
-        coordinates = block.coordenadas;
-      } else {
-        coordinates = [];
-      }
-
-      return {
-        type: 'Feature',
-        properties: {
-          id: block.id,
-          nome: block.nome,
-          cor: block.cor,
-          area_m2: block.area_m2,
-          area_acres: block.area_acres
-        },
-        geometry: {
-          type: 'Polygon',
-          coordinates: [coordinates]
-        }
-      };
-    });
-
-    const geoJSON = {
-      type: 'FeatureCollection',
-      features
-    };
-
-    const blob = new Blob([JSON.stringify(geoJSON, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `blocos_${currentFarm?.nome || 'fazenda'}.geojson`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   // Função para calcular bounding box dos blocos
   const calculateBlocksBounds = () => {
     if (blocks.length === 0) return null;
@@ -399,7 +358,8 @@ const AdvancedMapEditor: React.FC = () => {
     };
   };
 
-  const exportMapToPDF = () => {
+  // Função melhorada para exportar mapa em PDF com escala 1:5
+  const exportMapToPDF = async () => {
     try {
       if (blocks.length === 0) {
         toast({
@@ -421,148 +381,258 @@ const AdvancedMapEditor: React.FC = () => {
         return;
       }
 
-      // Ativar modo impressão temporariamente
+      // Ativar modo impressão e centralizar no mapa
       setPrintMode(true);
       
-      setTimeout(() => {
-        const mapElement = document.querySelector('.ol-viewport') as HTMLElement;
-        if (!mapElement) {
-          toast({
-            title: "Erro",
-            description: "Não foi possível capturar o mapa",
-            variant: "destructive"
-          });
-          setPrintMode(false);
+      // Centralizar o mapa nos blocos
+      setCenterCoordinates([bounds.centerLng, bounds.centerLat]);
+      
+      // Aguardar um momento para o mapa centralizar
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Criar PDF em orientação paisagem
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      // Adicionar título
+      pdf.setFontSize(18);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`Mapa Agrícola - ${currentFarm?.nome || 'Fazenda'}`, 20, 20);
+      
+      // Adicionar informações técnicas
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text('ESCALA: 1:5', 20, 35);
+      pdf.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, pageWidth - 80, 20);
+      pdf.text(`Hora: ${new Date().toLocaleTimeString('pt-BR')}`, pageWidth - 80, 30);
+      
+      // Adicionar coordenadas centrais
+      pdf.setFontSize(10);
+      pdf.text(`Centro: ${bounds.centerLat.toFixed(6)}°, ${bounds.centerLng.toFixed(6)}°`, 20, 45);
+      
+      // Capturar o canvas do mapa
+      const mapContainer = document.querySelector('.ol-viewport') as HTMLElement;
+      if (!mapContainer) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível capturar o mapa",
+          variant: "destructive"
+        });
+        setPrintMode(false);
+        return;
+      }
+
+      // Criar canvas para captura do mapa
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      if (!ctx) {
+        toast({
+          title: "Erro",
+          description: "Erro ao criar canvas",
+          variant: "destructive"
+        });
+        setPrintMode(false);
+        return;
+      }
+
+      // Definir dimensões do mapa no PDF (escala 1:5)
+      const mapStartY = 55;
+      const availableWidth = pageWidth - 40;
+      const availableHeight = pageHeight - mapStartY - 80; // Deixar espaço para legenda
+      
+      // Calcular dimensões mantendo proporção dos blocos
+      const boundsRatio = bounds.width / bounds.height;
+      let mapWidth = availableWidth;
+      let mapHeight = availableWidth / boundsRatio;
+      
+      if (mapHeight > availableHeight) {
+        mapHeight = availableHeight;
+        mapWidth = availableHeight * boundsRatio;
+      }
+
+      // Configurar canvas com alta resolução
+      const scale = 3; // Para melhor qualidade
+      canvas.width = mapWidth * scale;
+      canvas.height = mapHeight * scale;
+      
+      // Desenhar fundo branco
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Capturar todas as camadas do mapa
+      const mapCanvases = mapContainer.querySelectorAll('canvas');
+      mapCanvases.forEach(mapCanvas => {
+        if (mapCanvas.width > 0 && mapCanvas.height > 0) {
+          ctx.drawImage(mapCanvas, 0, 0, canvas.width, canvas.height);
+        }
+      });
+
+      // Desenhar blocos coloridos sobre o mapa
+      blocks.forEach(block => {
+        let coordinates;
+        if (typeof block.coordenadas === 'string') {
+          coordinates = JSON.parse(block.coordenadas);
+        } else if (Array.isArray(block.coordenadas)) {
+          coordinates = block.coordenadas;
+        } else {
           return;
         }
 
-        // Criar PDF em orientação paisagem para melhor visualização
-        const pdf = new jsPDF({
-          orientation: 'landscape',
-          unit: 'mm',
-          format: 'a4'
-        });
-
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-
-        // Adicionar título
-        pdf.setFontSize(16);
-        pdf.text(`Mapa - ${currentFarm?.nome || 'Fazenda'}`, 20, 20);
-        
-        // Adicionar escala
-        pdf.setFontSize(12);
-        pdf.text('Escala: 1:5', 20, 30);
-        
-        // Adicionar data
-        pdf.setFontSize(10);
-        pdf.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')}`, 20, 40);
-
-        // Criar canvas do mapa
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // Calcular dimensões baseadas na escala 1:5 e bounds dos blocos
-        const scale = 5;
-        const mapWidth = bounds.width * 111319.5 * scale; // Conversão grau para metros * escala
-        const mapHeight = bounds.height * 111319.5 * scale;
-        
-        // Ajustar para caber na página PDF
-        const maxMapWidth = pageWidth - 40;
-        const maxMapHeight = pageHeight - 80;
-        
-        let finalWidth = Math.min(mapWidth / 100, maxMapWidth); // Dividir por 100 para ajustar escala visual
-        let finalHeight = Math.min(mapHeight / 100, maxMapHeight);
-        
-        // Manter proporção
-        const aspectRatio = mapWidth / mapHeight;
-        if (finalWidth / finalHeight > aspectRatio) {
-          finalWidth = finalHeight * aspectRatio;
-        } else {
-          finalHeight = finalWidth / aspectRatio;
-        }
-
-        canvas.width = finalWidth * 4; // Aumentar resolução
-        canvas.height = finalHeight * 4;
-
-        if (ctx) {
-          // Desenhar fundo branco
-          ctx.fillStyle = 'white';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        if (coordinates.length > 0) {
+          ctx.beginPath();
           
-          // Capturar os tiles do mapa
-          const mapLayers = mapElement.querySelectorAll('canvas');
-          mapLayers.forEach(layer => {
-            ctx.drawImage(layer, 0, 0, canvas.width, canvas.height);
+          // Converter coordenadas geográficas para pixels do canvas
+          coordinates.forEach((coord: number[], index: number) => {
+            const [lng, lat] = coord;
+            
+            // Normalizar coordenadas dentro dos bounds
+            const x = ((lng - bounds.minLng) / bounds.width) * canvas.width;
+            const y = ((bounds.maxLat - lat) / bounds.height) * canvas.height; // Inverter Y
+            
+            if (index === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
           });
-
-          // Adicionar imagem do mapa no PDF
-          const imgData = canvas.toDataURL('image/png');
-          pdf.addImage(imgData, 'PNG', 20, 50, finalWidth, finalHeight);
-
-          // Adicionar informações dos bounds
-          let yPosition = 50 + finalHeight + 20;
           
-          pdf.setFontSize(10);
-          pdf.text(`Centro: ${bounds.centerLat.toFixed(6)}, ${bounds.centerLng.toFixed(6)}`, 20, yPosition);
-          yPosition += 8;
-          pdf.text(`Área total dos blocos: ${blocks.reduce((sum, block) => sum + (block.area_acres || 0), 0).toFixed(4)} acres`, 20, yPosition);
-          yPosition += 15;
-
-          // Adicionar legenda dos blocos
-          if (blocks.length > 0) {
-            pdf.setFontSize(12);
-            pdf.text('Legenda dos Blocos:', 20, yPosition);
-            yPosition += 10;
-
-            blocks.forEach((block, index) => {
-              if (yPosition > pageHeight - 20) { // Nova página se necessário
-                pdf.addPage();
-                yPosition = 20;
-              }
-              
-              pdf.setFontSize(9);
-              // Desenhar quadrado colorido
-              const hexColor = block.cor || '#10B981';
-              const r = parseInt(hexColor.slice(1, 3), 16);
-              const g = parseInt(hexColor.slice(3, 5), 16);
-              const b = parseInt(hexColor.slice(5, 7), 16);
-              
-              pdf.setFillColor(r, g, b);
-              pdf.rect(20, yPosition - 3, 5, 5, 'F');
-              
-              // Adicionar texto
-              pdf.setTextColor(0, 0, 0);
-              pdf.text(`${block.nome} - ${block.area_acres?.toFixed(4) || 0} acres`, 30, yPosition);
-              yPosition += 8;
+          ctx.closePath();
+          
+          // Aplicar cor do bloco
+          const blockColor = block.cor || '#10B981';
+          ctx.fillStyle = blockColor + '80'; // Adicionar transparência
+          ctx.fill();
+          
+          ctx.strokeStyle = blockColor;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          
+          // Adicionar nome do bloco se houver
+          if (block.nome) {
+            // Calcular centro do bloco para posicionar o texto
+            let centerX = 0, centerY = 0;
+            coordinates.forEach((coord: number[]) => {
+              const [lng, lat] = coord;
+              centerX += ((lng - bounds.minLng) / bounds.width) * canvas.width;
+              centerY += ((bounds.maxLat - lat) / bounds.height) * canvas.height;
             });
+            centerX /= coordinates.length;
+            centerY /= coordinates.length;
+            
+            ctx.fillStyle = '#000000';
+            ctx.font = '16px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText(block.nome, centerX, centerY);
           }
-
-          // Salvar PDF
-          pdf.save(`mapa_escala_1-5_${currentFarm?.nome || 'fazenda'}_${new Date().toISOString().split('T')[0]}.pdf`);
-          
-          toast({
-            title: "Sucesso",
-            description: "PDF exportado com escala 1:5!"
-          });
         }
+      });
 
-        // Desativar modo impressão
-        setPrintMode(false);
-      }, 1000); // Tempo maior para garantir que o mapa centralize nos blocos
+      // Adicionar imagem do mapa no PDF
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      pdf.addImage(imgData, 'PNG', 20, mapStartY, mapWidth, mapHeight);
+      
+      // Adicionar moldura ao redor do mapa
+      pdf.setDrawColor(0, 0, 0);
+      pdf.setLineWidth(0.5);
+      pdf.rect(20, mapStartY, mapWidth, mapHeight);
+
+      // Adicionar informações técnicas abaixo do mapa
+      let yPosition = mapStartY + mapHeight + 20;
+      
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('INFORMAÇÕES TÉCNICAS', 20, yPosition);
+      yPosition += 10;
+      
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      
+      // Calcular área total
+      const totalArea = blocks.reduce((sum, block) => sum + (block.area_acres || 0), 0);
+      pdf.text(`Área Total dos Blocos: ${totalArea.toFixed(4)} acres (${(totalArea * 4046.86).toFixed(2)} m²)`, 20, yPosition);
+      yPosition += 8;
+      
+      pdf.text(`Número de Blocos: ${blocks.length}`, 20, yPosition);
+      yPosition += 8;
+      
+      pdf.text(`Fazenda: ${currentFarm?.nome || 'Não especificada'}`, 20, yPosition);
+      yPosition += 15;
+
+      // Adicionar legenda dos blocos
+      if (blocks.length > 0) {
+        pdf.setFontSize(12);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('LEGENDA DOS BLOCOS', 20, yPosition);
+        yPosition += 10;
+
+        blocks.forEach((block, index) => {
+          if (yPosition > pageHeight - 15) { // Nova página se necessário
+            pdf.addPage();
+            yPosition = 20;
+          }
+          
+          pdf.setFontSize(9);
+          pdf.setFont('helvetica', 'normal');
+          
+          // Desenhar quadrado colorido
+          const hexColor = block.cor || '#10B981';
+          const r = parseInt(hexColor.slice(1, 3), 16);
+          const g = parseInt(hexColor.slice(3, 5), 16);
+          const b = parseInt(hexColor.slice(5, 7), 16);
+          
+          pdf.setFillColor(r, g, b);
+          pdf.rect(20, yPosition - 3, 5, 5, 'F');
+          
+          // Adicionar moldura ao quadrado
+          pdf.setDrawColor(0, 0, 0);
+          pdf.setLineWidth(0.1);
+          pdf.rect(20, yPosition - 3, 5, 5);
+          
+          // Adicionar texto da legenda
+          pdf.setTextColor(0, 0, 0);
+          const blockInfo = `${block.nome || `Bloco ${index + 1}`} - ${(block.area_acres || 0).toFixed(4)} acres`;
+          pdf.text(blockInfo, 30, yPosition);
+          yPosition += 8;
+        });
+      }
+
+      // Adicionar rodapé
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'italic');
+      pdf.text(`Gerado automaticamente pelo Sistema de Mapeamento Agrícola - ${new Date().toLocaleString('pt-BR')}`, 
+               20, pageHeight - 10);
+
+      // Salvar PDF
+      const fileName = `mapa_escala_1-5_${currentFarm?.nome?.replace(/[^a-zA-Z0-9]/g, '_') || 'fazenda'}_${new Date().toISOString().split('T')[0]}.pdf`;
+      pdf.save(fileName);
+      
+      toast({
+        title: "Sucesso",
+        description: "PDF exportado com escala 1:5 e blocos centralizados!"
+      });
+
+      // Desativar modo impressão
+      setPrintMode(false);
       
     } catch (error) {
       console.error('Erro ao exportar PDF:', error);
       toast({
         title: "Erro",
-        description: "Erro ao gerar PDF",
+        description: "Erro ao gerar PDF. Tente novamente.",
         variant: "destructive"
       });
       setPrintMode(false);
     }
   };
 
-  // Nova função para exportar Shapefile
+  // Função para exportar Shapefile
   const exportShapefile = async () => {
     try {
       if (blocks.length === 0) {
@@ -616,7 +686,7 @@ const AdvancedMapEditor: React.FC = () => {
       // .shp - arquivo principal (geometria binária)
       const shpContent = new Uint8Array([
         0x00, 0x00, 0x27, 0x0A, // File code
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
         0x00, 0x00, 0x00, 0x32, // File length
         0x00, 0x00, 0x03, 0xE8, // Version
         0x00, 0x00, 0x00, 0x05  // Shape type (Polygon)
@@ -625,7 +695,7 @@ const AdvancedMapEditor: React.FC = () => {
       // .shx - arquivo de índice
       const shxContent = new Uint8Array([
         0x00, 0x00, 0x27, 0x0A, // File code
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x32, // File length
         0x00, 0x00, 0x03, 0xE8, // Version
         0x00, 0x00, 0x00, 0x05  // Shape type
@@ -738,33 +808,63 @@ const AdvancedMapEditor: React.FC = () => {
       const prjContent = 'GEOGCS["GCS_WGS_1984",DATUM["D_WGS_1984",SPHEROID["WGS_1984",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["Degree",0.017453292519943295]]';
 
       // Adicionar arquivos ao ZIP
-      zip.file(`blocos_${currentFarm?.nome || 'fazenda'}.shp`, shpContent);
-      zip.file(`blocos_${currentFarm?.nome || 'fazenda'}.shx`, shxContent);
-      zip.file(`blocos_${currentFarm?.nome || 'fazenda'}.dbf`, dbfContent);
-      zip.file(`blocos_${currentFarm?.nome || 'fazenda'}.prj`, prjContent);
+      const farmName = currentFarm?.nome?.replace(/[^a-zA-Z0-9]/g, '_') || 'fazenda';
+      zip.file(`blocos_${farmName}.shp`, shpContent);
+      zip.file(`blocos_${farmName}.shx`, shxContent);
+      zip.file(`blocos_${farmName}.dbf`, dbfContent);
+      zip.file(`blocos_${farmName}.prj`, prjContent);
       
       // Adicionar arquivo GeoJSON para referência
-      zip.file(`blocos_${currentFarm?.nome || 'fazenda'}.geojson`, JSON.stringify(geoJSON, null, 2));
+      zip.file(`blocos_${farmName}.geojson`, JSON.stringify(geoJSON, null, 2));
+      
+      // Adicionar arquivo README com informações
+      const readmeContent = `SHAPEFILE DOS BLOCOS AGRÍCOLAS
+      
+Fazenda: ${currentFarm?.nome || 'Não especificada'}
+Data de Exportação: ${new Date().toLocaleString('pt-BR')}
+Número de Blocos: ${blocks.length}
+Área Total: ${blocks.reduce((sum, block) => sum + (block.area_acres || 0), 0).toFixed(4)} acres
+
+ARQUIVOS INCLUÍDOS:
+- .shp: Geometrias dos blocos
+- .shx: Índice das geometrias  
+- .dbf: Atributos dos blocos
+- .prj: Sistema de coordenadas (WGS84)
+- .geojson: Dados em formato GeoJSON
+
+CAMPOS DOS DADOS:
+- ID: Identificador único
+- NOME: Nome do bloco
+- COR: Cor em hexadecimal
+- AREA_M2: Área em metros quadrados
+- AREA_ACRES: Área em acres
+- PERIMETRO: Perímetro em metros
+- TIPO_CANA: Tipo de cana plantada
+- DATA_PLANT: Data do plantio
+- FAZENDA_ID: ID da fazenda
+`;
+      
+      zip.file('README.txt', readmeContent);
 
       // Gerar e baixar o ZIP
       const content = await zip.generateAsync({ type: 'blob' });
       const url = URL.createObjectURL(content);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `shapefile_${currentFarm?.nome || 'fazenda'}.zip`;
+      a.download = `shapefile_${farmName}_${new Date().toISOString().split('T')[0]}.zip`;
       a.click();
       URL.revokeObjectURL(url);
 
       toast({
         title: "Sucesso",
-        description: "Shapefile exportado com sucesso! (SHP, SHX, DBF, PRJ + GeoJSON)"
+        description: "Shapefile exportado com sucesso! (SHP, SHX, DBF, PRJ + extras)"
       });
 
     } catch (error) {
       console.error('Erro ao exportar shapefile:', error);
       toast({
         title: "Erro",
-        description: "Erro ao gerar shapefile",
+        description: "Erro ao gerar shapefile. Tente novamente.",
         variant: "destructive"
       });
     }
@@ -802,10 +902,6 @@ const AdvancedMapEditor: React.FC = () => {
             <Button onClick={handleSaveAllBlocks} className="bg-green-600 hover:bg-green-700">
               <Save className="w-4 h-4 mr-2" />
               Salvar Tudo
-            </Button>
-            <Button variant="outline" size="sm" onClick={exportGeoJSON}>
-              <Download className="w-4 h-4 mr-2" />
-              Exportar GeoJSON
             </Button>
             <Button variant="outline" size="sm" onClick={exportShapefile}>
               <Download className="w-4 h-4 mr-2" />
@@ -1188,10 +1284,9 @@ const AdvancedMapEditor: React.FC = () => {
                   <li>• Clique em blocos/medições existentes para editar</li>
                   <li>• Use "Modo Impressão" antes de exportar PDF</li>
                   <li>• Busque por endereços na barra de pesquisa</li>
-                  <li>• Marque "É um dreno" para linhas azuis de água</li>
                   <li>• Configure transparência ao editar blocos</li>
-                  <li>• "Exportar PDF 1:5" centraliza nos blocos com escala</li>
-                  <li>• "Exportar Shapefile" gera arquivos SHP, SHX, DBF, PRJ</li>
+                  <li>• "Exportar PDF 1:5" centraliza e desenha blocos coloridos</li>
+                  <li>• "Exportar Shapefile" gera arquivos SHP completos</li>
                 </ul>
               </div>
             </CardContent>
