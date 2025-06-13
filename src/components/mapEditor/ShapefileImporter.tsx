@@ -33,20 +33,25 @@ const ShapefileImporter: React.FC<ShapefileImporterProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const { toast } = useToast();
 
   if (!isOpen) return null;
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      if (file.name.toLowerCase().endsWith('.zip')) {
-        setSelectedFile(file);
+    const files = event.target.files;
+    if (files && files.length > 0) {
+      const validExtensions = ['.zip', '.shp', '.dbf', '.shx', '.prj'];
+      const hasValidFiles = Array.from(files).some(file => 
+        validExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
+      );
+      
+      if (hasValidFiles) {
+        setSelectedFiles(files);
       } else {
         toast({
           title: "Erro",
-          description: "Por favor, selecione um arquivo ZIP contendo o shapefile",
+          description: "Por favor, selecione arquivos ZIP ou componentes do shapefile (.shp, .dbf, .shx, .prj)",
           variant: "destructive"
         });
       }
@@ -61,8 +66,6 @@ const ShapefileImporter: React.FC<ShapefileImporterProps> = ({
       // Skip DBF header parsing for now - simplified version
       // In a real implementation, you'd parse the full DBF structure
       
-      // For demo purposes, return empty records
-      // Real implementation would parse field descriptors and records
       console.log('DBF file size:', buffer.byteLength);
       
       return records;
@@ -137,11 +140,65 @@ const ShapefileImporter: React.FC<ShapefileImporterProps> = ({
     return { features };
   };
 
+  const processZipFile = async (file: File) => {
+    const zip = new JSZip();
+    const zipContent = await zip.loadAsync(file);
+    
+    // Look for shapefile components
+    let shpFile = null;
+    let dbfFile = null;
+    let prjFile = null;
+    
+    for (const filename in zipContent.files) {
+      const zipFile = zipContent.files[filename];
+      const ext = filename.toLowerCase().split('.').pop();
+      
+      if (ext === 'shp') {
+        shpFile = await zipFile.async('arraybuffer');
+      } else if (ext === 'dbf') {
+        dbfFile = await zipFile.async('arraybuffer');
+      } else if (ext === 'prj') {
+        prjFile = await zipFile.async('text');
+      }
+    }
+
+    if (!shpFile) {
+      throw new Error('Arquivo .shp não encontrado no ZIP');
+    }
+
+    return { shpFile, dbfFile, prjFile };
+  };
+
+  const processIndividualFiles = async (files: FileList) => {
+    let shpFile = null;
+    let dbfFile = null;
+    let prjFile = null;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const ext = file.name.toLowerCase().split('.').pop();
+
+      if (ext === 'shp') {
+        shpFile = await file.arrayBuffer();
+      } else if (ext === 'dbf') {
+        dbfFile = await file.arrayBuffer();
+      } else if (ext === 'prj') {
+        prjFile = await file.text();
+      }
+    }
+
+    if (!shpFile) {
+      throw new Error('Arquivo .shp não encontrado nos arquivos selecionados');
+    }
+
+    return { shpFile, dbfFile, prjFile };
+  };
+
   const handleImport = async () => {
-    if (!selectedFile) {
+    if (!selectedFiles || selectedFiles.length === 0) {
       toast({
         title: "Erro",
-        description: "Selecione um arquivo para importar",
+        description: "Selecione arquivos para importar",
         variant: "destructive"
       });
       return;
@@ -150,29 +207,22 @@ const ShapefileImporter: React.FC<ShapefileImporterProps> = ({
     setIsProcessing(true);
 
     try {
-      const zip = new JSZip();
-      const zipContent = await zip.loadAsync(selectedFile);
-      
-      // Look for shapefile components
       let shpFile = null;
       let dbfFile = null;
       let prjFile = null;
-      
-      for (const filename in zipContent.files) {
-        const file = zipContent.files[filename];
-        const ext = filename.toLowerCase().split('.').pop();
-        
-        if (ext === 'shp') {
-          shpFile = await file.async('arraybuffer');
-        } else if (ext === 'dbf') {
-          dbfFile = await file.async('arraybuffer');
-        } else if (ext === 'prj') {
-          prjFile = await file.async('text');
-        }
-      }
 
-      if (!shpFile) {
-        throw new Error('Arquivo .shp não encontrado no ZIP');
+      // Check if we have a single ZIP file
+      if (selectedFiles.length === 1 && selectedFiles[0].name.toLowerCase().endsWith('.zip')) {
+        const result = await processZipFile(selectedFiles[0]);
+        shpFile = result.shpFile;
+        dbfFile = result.dbfFile;
+        prjFile = result.prjFile;
+      } else {
+        // Process individual files
+        const result = await processIndividualFiles(selectedFiles);
+        shpFile = result.shpFile;
+        dbfFile = result.dbfFile;
+        prjFile = result.prjFile;
       }
 
       console.log('Files found:', {
@@ -206,6 +256,44 @@ const ShapefileImporter: React.FC<ShapefileImporterProps> = ({
     }
   };
 
+  const getSelectedFilesDisplay = () => {
+    if (!selectedFiles || selectedFiles.length === 0) return null;
+
+    if (selectedFiles.length === 1) {
+      return (
+        <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+          <div className="flex items-center gap-2">
+            <FileText className="w-4 h-4 text-green-600" />
+            <span className="text-sm font-medium text-green-900">
+              {selectedFiles[0].name}
+            </span>
+          </div>
+          <p className="text-xs text-green-700 mt-1">
+            Tamanho: {(selectedFiles[0].size / 1024).toFixed(1)} KB
+          </p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+        <div className="flex items-center gap-2 mb-2">
+          <FileText className="w-4 h-4 text-green-600" />
+          <span className="text-sm font-medium text-green-900">
+            {selectedFiles.length} arquivos selecionados
+          </span>
+        </div>
+        <div className="space-y-1">
+          {Array.from(selectedFiles).map((file, index) => (
+            <div key={index} className="text-xs text-green-700">
+              • {file.name} ({(file.size / 1024).toFixed(1)} KB)
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
       <Card className="w-96 bg-white">
@@ -226,18 +314,19 @@ const ShapefileImporter: React.FC<ShapefileImporterProps> = ({
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <div className="space-y-2">
               <p className="text-sm text-gray-600">
-                Selecione um arquivo ZIP contendo os arquivos do shapefile
+                Selecione arquivos do shapefile ou um arquivo ZIP
               </p>
               <p className="text-xs text-gray-500">
-                Deve incluir: .shp, .shx, .dbf (e opcionalmente .prj)
+                Aceita: .shp, .dbf, .shx, .prj ou arquivo .zip
               </p>
             </div>
             
             <input
               ref={fileInputRef}
               type="file"
-              accept=".zip"
+              accept=".zip,.shp,.dbf,.shx,.prj"
               onChange={handleFileSelect}
+              multiple
               className="hidden"
             />
             
@@ -248,23 +337,11 @@ const ShapefileImporter: React.FC<ShapefileImporterProps> = ({
               className="mt-4"
             >
               <Upload className="w-4 h-4 mr-2" />
-              Selecionar Arquivo
+              Selecionar Arquivos
             </Button>
           </div>
 
-          {selectedFile && (
-            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-              <div className="flex items-center gap-2">
-                <FileText className="w-4 h-4 text-green-600" />
-                <span className="text-sm font-medium text-green-900">
-                  {selectedFile.name}
-                </span>
-              </div>
-              <p className="text-xs text-green-700 mt-1">
-                Tamanho: {(selectedFile.size / 1024).toFixed(1)} KB
-              </p>
-            </div>
-          )}
+          {getSelectedFilesDisplay()}
 
           <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
             <div className="flex items-start gap-2">
@@ -273,6 +350,7 @@ const ShapefileImporter: React.FC<ShapefileImporterProps> = ({
                 <p className="font-medium mb-1">Formatos suportados:</p>
                 <ul className="space-y-1">
                   <li>• Arquivo ZIP contendo shapefile completo</li>
+                  <li>• Arquivos individuais (.shp, .dbf, .shx, .prj)</li>
                   <li>• Geometrias do tipo Polígono</li>
                   <li>• Sistema de coordenadas WGS84</li>
                 </ul>
@@ -283,7 +361,7 @@ const ShapefileImporter: React.FC<ShapefileImporterProps> = ({
           <div className="flex gap-2 pt-2">
             <Button
               onClick={handleImport}
-              disabled={!selectedFile || isProcessing}
+              disabled={!selectedFiles || selectedFiles.length === 0 || isProcessing}
               className="flex-1 bg-green-600 hover:bg-green-700"
             >
               {isProcessing ? (
