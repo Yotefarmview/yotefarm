@@ -139,7 +139,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   // Criar estilo para medições
   const createMeasurementStyle = useCallback((measurement: MeasurementData, isSelected?: boolean) => {
     const color = measurement.isDrain ? '#3B82F6' : '#FF6B35';
-    const displayText = `${measurement.name}\n${measurement.distance.toFixed(2)}m`;
+    const distanceInFt = measurement.distance * 3.28084; // Convert meters to feet
+    const displayText = `${measurement.name}\n${distanceInFt.toFixed(2)}ft`;
     
     return new Style({
       stroke: new Stroke({
@@ -441,10 +442,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
   }, []);
 
-  // Format length for display - always in meters
+  // Format length for display - always in feet
   const formatLength = useCallback((line: LineString) => {
-    const length = getLength(line);
-    return Math.round(length * 100) / 100 + ' m';
+    const lengthInMeters = getLength(line);
+    const lengthInFt = lengthInMeters * 3.28084; // Convert meters to feet
+    return Math.round(lengthInFt * 100) / 100 + ' ft';
   }, []);
 
   // Inicializar mapa - uma única vez
