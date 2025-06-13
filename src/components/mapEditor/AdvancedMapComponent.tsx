@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Map, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
@@ -15,6 +16,7 @@ import { boundingExtent } from 'ol/extent';
 import * as turf from '@turf/turf';
 import GeoJSON from 'ol/format/GeoJSON';
 import { unByKey } from 'ol/Observable';
+import Overlay from 'ol/Overlay';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -430,7 +432,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     `;
     
     if (mapInstance.current) {
-      const overlay = new (await import('ol/Overlay')).default({
+      const overlay = new Overlay({
         element: measureTooltipElement.current,
         offset: [0, -15],
         positioning: 'bottom-center',
