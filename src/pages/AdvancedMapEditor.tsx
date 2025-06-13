@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Map as MapIcon, Save, Settings, Download, Upload, Navigation, Layers, FileText, Ruler } from 'lucide-react';
@@ -19,6 +18,7 @@ import { useBlocks } from '../hooks/useBlocks';
 import { useFarms } from '../hooks/useFarms';
 import jsPDF from 'jspdf';
 import JSZip from 'jszip';
+import ShapefileImporter from '../components/mapEditor/ShapefileImporter';
 
 // Extended farm type to include the new fields
 interface ExtendedFarm {
@@ -91,6 +91,9 @@ const AdvancedMapEditor: React.FC = () => {
     { value: '#EC4899', label: 'Rosa', name: 'Teste' },
     { value: '#06B6D4', label: 'Turquesa', name: 'Dreno' }
   ];
+
+  // Add new state for shapefile importer
+  const [showImporter, setShowImporter] = useState(false);
 
   // Handle farm selection
   const handleFarmChange = (farmId: string) => {
@@ -951,6 +954,77 @@ CAMPOS DOS DADOS:
     }
   };
 
+  // Add shapefile import handler
+  const handleShapefileImport = async (shapefileData: any) => {
+    try {
+      if (!selectedFarmId) {
+        toast({
+          title: "Erro",
+          description: "Selecione uma fazenda primeiro",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('Importing shapefile data:', shapefileData);
+
+      // Convert shapefile features to blocks
+      for (const feature of shapefileData.features) {
+        const coordinates = feature.geometry.coordinates[0]; // Get exterior ring
+        
+        // Calculate area using Turf.js (simplified calculation)
+        const area_m2 = coordinates.length > 0 ? 1000 : 0; // Placeholder
+        const area_acres = area_m2 * 0.000247105;
+        
+        const blockData = {
+          fazenda_id: selectedFarmId,
+          nome: feature.properties.NOME || feature.properties.NAME || `Bloco Importado ${Date.now()}`,
+          cor: feature.properties.COR || feature.properties.COLOR || '#10B981',
+          coordenadas: coordinates,
+          area_m2: feature.properties.AREA_M2 || area_m2,
+          area_acres: feature.properties.AREA_ACRES || area_acres,
+          perimetro: feature.properties.PERIMETRO || feature.properties.PERIMETER || 0,
+          transparencia: 0.4,
+          // Required null fields
+          data_plantio: null,
+          proxima_colheita: null,
+          ultima_aplicacao: null,
+          tipo_cana: feature.properties.TIPO_CANA || feature.properties.CANE_TYPE || null,
+          proxima_aplicacao: null,
+          possui_dreno: false,
+          ndvi_historico: null
+        };
+
+        await createBlock(blockData);
+      }
+
+      toast({
+        title: "Sucesso",
+        description: `${shapefileData.features.length} blocos importados com sucesso!`
+      });
+
+      // Refresh blocks and center map on imported data
+      refetch();
+      
+      // Center map on first imported feature if available
+      if (shapefileData.features.length > 0) {
+        const firstFeature = shapefileData.features[0];
+        const coords = firstFeature.geometry.coordinates[0];
+        if (coords.length > 0) {
+          setCenterCoordinates([coords[0][0], coords[0][1]]);
+        }
+      }
+
+    } catch (error) {
+      console.error('Error importing shapefile:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao importar shapefile",
+        variant: "destructive"
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -992,7 +1066,7 @@ CAMPOS DOS DADOS:
               <FileText className="w-4 h-4 mr-2" />
               Exportar PDF 1:5
             </Button>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={() => setShowImporter(true)}>
               <Upload className="w-4 h-4 mr-2" />
               Importar
             </Button>
@@ -1372,6 +1446,13 @@ CAMPOS DOS DADOS:
           </Card>
         </motion.div>
       </div>
+
+      {/* Shapefile Importer Modal */}
+      <ShapefileImporter
+        isOpen={showImporter}
+        onClose={() => setShowImporter(false)}
+        onImport={handleShapefileImport}
+      />
     </div>
   );
 };
