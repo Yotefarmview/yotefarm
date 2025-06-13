@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
@@ -43,7 +44,7 @@ const AdvancedMapEditor: React.FC = () => {
   const urlFarmId = searchParams.get('fazenda');
 
   const [selectedFarmId, setSelectedFarmId] = useState<string>(urlFarmId || '');
-  const { blocks, createBlock, updateBlock, deleteBlock } = useBlocks(selectedFarmId || undefined);
+  const { blocks, createBlock, updateBlock, deleteBlock, refetch } = useBlocks(selectedFarmId || undefined);
   const { farms, updateFarm } = useFarms();
 
   const [selectedBlock, setSelectedBlock] = useState<any>(null);
@@ -154,6 +155,8 @@ const AdvancedMapEditor: React.FC = () => {
 
   const handlePolygonDrawn = async (blockData: any) => {
     try {
+      console.log('handlePolygonDrawn called with:', blockData);
+      
       if (!selectedFarmId) {
         toast({
           title: "Erro",
@@ -163,28 +166,42 @@ const AdvancedMapEditor: React.FC = () => {
         return;
       }
 
-      const newBlock = {
-        ...blockData,
+      // Prepare block data for database
+      const newBlockData = {
         fazenda_id: selectedFarmId,
-        coordenadas: JSON.stringify(blockData.coordinates),
-        nome: blockFormData.nome || blockData.name,
-        cor: selectedColor,
-        transparency: transparency
+        nome: blockFormData.nome || blockData.name || `Bloco ${Date.now()}`,
+        cor: selectedColor || '#10B981',
+        coordenadas: blockData.coordinates,
+        area_m2: blockData.area_m2 || 0,
+        area_acres: blockData.area_acres || 0,
+        perimetro: blockData.perimeter || 0,
+        transparencia: transparency
       };
 
-      await createBlock(newBlock);
+      console.log('Saving block data:', newBlockData);
+
+      // Save to database
+      const savedBlock = await createBlock(newBlockData);
+      
+      console.log('Block saved successfully:', savedBlock);
 
       toast({
         title: "Sucesso",
-        description: "Bloco criado com sucesso!"
+        description: `Bloco "${newBlockData.nome}" criado com sucesso!`
       });
 
+      // Reset form and drawing mode
       setDrawingMode(null);
       resetBlockForm();
+      
+      // Refresh blocks list
+      refetch();
+      
     } catch (error) {
+      console.error('Error saving block:', error);
       toast({
         title: "Erro",
-        description: "Erro ao criar bloco",
+        description: "Erro ao salvar bloco no banco de dados",
         variant: "destructive"
       });
     }
@@ -192,16 +209,41 @@ const AdvancedMapEditor: React.FC = () => {
 
   const handleBlockUpdate = async (blockId: string, updates: any) => {
     try {
-      await updateBlock(blockId, {
-        ...updates,
-        coordenadas: updates.coordinates ? JSON.stringify(updates.coordinates) : undefined
-      });
+      console.log('Updating block:', blockId, updates);
+      
+      const updateData: any = {
+        nome: updates.nome,
+        cor: updates.cor
+      };
+      
+      if (updates.coordinates) {
+        updateData.coordenadas = updates.coordinates;
+      }
+      
+      if (updates.area_m2 !== undefined) {
+        updateData.area_m2 = updates.area_m2;
+      }
+      
+      if (updates.area_acres !== undefined) {
+        updateData.area_acres = updates.area_acres;
+      }
+      
+      if (updates.perimeter !== undefined) {
+        updateData.perimetro = updates.perimeter;
+      }
+
+      await updateBlock(blockId, updateData);
+      
+      console.log('Block updated successfully');
 
       toast({
         title: "Sucesso",
         description: "Bloco atualizado com sucesso!"
       });
+      
+      refetch();
     } catch (error) {
+      console.error('Error updating block:', error);
       toast({
         title: "Erro",
         description: "Erro ao atualizar bloco",
@@ -212,6 +254,8 @@ const AdvancedMapEditor: React.FC = () => {
 
   const handleBlockDelete = async (blockId: string) => {
     try {
+      console.log('Deleting block:', blockId);
+      
       await deleteBlock(blockId);
       setSelectedBlock(null);
       resetBlockForm();
@@ -220,7 +264,10 @@ const AdvancedMapEditor: React.FC = () => {
         title: "Sucesso",
         description: "Bloco deletado com sucesso!"
       });
+      
+      refetch();
     } catch (error) {
+      console.error('Error deleting block:', error);
       toast({
         title: "Erro",
         description: "Erro ao deletar bloco",
@@ -230,6 +277,7 @@ const AdvancedMapEditor: React.FC = () => {
   };
 
   const handleBlockSelect = (block: any) => {
+    console.log('Block selected:', block);
     setSelectedBlock(block);
     setDrawingMode('edit');
   };
@@ -251,7 +299,9 @@ const AdvancedMapEditor: React.FC = () => {
       setSelectedBlock(null);
       setDrawingMode(null);
       resetBlockForm();
+      refetch();
     } catch (error) {
+      console.error('Error saving block:', error);
       toast({
         title: "Erro",
         description: "Erro ao salvar bloco",
@@ -285,6 +335,7 @@ const AdvancedMapEditor: React.FC = () => {
         description: "Dados da fazenda salvos com sucesso!"
       });
     } catch (error) {
+      console.error('Error saving farm:', error);
       toast({
         title: "Erro",
         description: "Erro ao salvar dados da fazenda",
@@ -295,6 +346,7 @@ const AdvancedMapEditor: React.FC = () => {
 
   const handleSaveAllBlocks = async () => {
     try {
+      // This function could be used to save any pending changes
       toast({
         title: "Sucesso",
         description: "Todas as informações foram salvas!"
