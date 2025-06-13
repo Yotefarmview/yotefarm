@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { Map, View } from 'ol';
 import TileLayer from 'ol/layer/Tile';
@@ -442,14 +441,10 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
   }, []);
 
-  // Format length for display
+  // Format length for display - always in meters
   const formatLength = useCallback((line: LineString) => {
     const length = getLength(line);
-    if (length > 100) {
-      return Math.round((length / 1000) * 100) / 100 + ' km';
-    } else {
-      return Math.round(length * 100) / 100 + ' m';
-    }
+    return Math.round(length * 100) / 100 + ' m';
   }, []);
 
   // Inicializar mapa - uma única vez
