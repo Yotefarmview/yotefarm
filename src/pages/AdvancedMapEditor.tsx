@@ -166,7 +166,7 @@ const AdvancedMapEditor: React.FC = () => {
         return;
       }
 
-      // Prepare block data for database
+      // Prepare block data for database with all required fields
       const newBlockData = {
         fazenda_id: selectedFarmId,
         nome: blockFormData.nome || blockData.name || `Bloco ${Date.now()}`,
@@ -175,7 +175,15 @@ const AdvancedMapEditor: React.FC = () => {
         area_m2: blockData.area_m2 || 0,
         area_acres: blockData.area_acres || 0,
         perimetro: blockData.perimeter || 0,
-        transparencia: transparency
+        transparencia: transparency,
+        // Add missing required fields with null defaults
+        data_plantio: null,
+        proxima_colheita: null,
+        ultima_aplicacao: null,
+        tipo_cana: null,
+        proxima_aplicacao: null,
+        possui_dreno: null,
+        ndvi_historico: null
       };
 
       console.log('Saving block data:', newBlockData);
