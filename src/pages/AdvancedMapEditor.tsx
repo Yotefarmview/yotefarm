@@ -325,46 +325,90 @@ const AdvancedMapEditor: React.FC = () => {
 
   // Função para calcular bounding box dos blocos
   const calculateBlocksBounds = () => {
-    if (blocks.length === 0) return null;
+    console.log('Calculando bounds para blocos:', blocks);
+    
+    if (!blocks || blocks.length === 0) {
+      console.log('Nenhum bloco encontrado para calcular bounds');
+      return null;
+    }
 
     let minLat = Infinity, maxLat = -Infinity;
     let minLng = Infinity, maxLng = -Infinity;
+    let validBlocks = 0;
 
-    blocks.forEach(block => {
+    blocks.forEach((block, index) => {
+      console.log(`Processando bloco ${index + 1}:`, block);
+      
       let coordinates;
       if (typeof block.coordenadas === 'string') {
-        coordinates = JSON.parse(block.coordenadas);
+        try {
+          coordinates = JSON.parse(block.coordenadas);
+        } catch (e) {
+          console.error('Erro ao fazer parse das coordenadas do bloco:', block.id, e);
+          return;
+        }
       } else if (Array.isArray(block.coordenadas)) {
         coordinates = block.coordenadas;
       } else {
+        console.log('Coordenadas inválidas para o bloco:', block.id);
         return;
       }
 
+      if (!coordinates || coordinates.length === 0) {
+        console.log('Coordenadas vazias para o bloco:', block.id);
+        return;
+      }
+
+      console.log('Coordenadas do bloco:', coordinates);
+      validBlocks++;
+
       coordinates.forEach((coord: number[]) => {
         const [lng, lat] = coord;
-        minLat = Math.min(minLat, lat);
-        maxLat = Math.max(maxLat, lat);
-        minLng = Math.min(minLng, lng);
-        maxLng = Math.max(maxLng, lng);
+        if (typeof lng === 'number' && typeof lat === 'number') {
+          minLat = Math.min(minLat, lat);
+          maxLat = Math.max(maxLat, lat);
+          minLng = Math.min(minLng, lng);
+          maxLng = Math.max(maxLng, lng);
+        }
       });
     });
 
-    return {
+    if (validBlocks === 0) {
+      console.log('Nenhum bloco válido encontrado');
+      return null;
+    }
+
+    const bounds = {
       minLat, maxLat, minLng, maxLng,
       centerLat: (minLat + maxLat) / 2,
       centerLng: (minLng + maxLng) / 2,
       width: maxLng - minLng,
       height: maxLat - minLat
     };
+
+    console.log('Bounds calculados:', bounds);
+    return bounds;
   };
 
   // Função melhorada para exportar mapa em PDF com escala 1:5
   const exportMapToPDF = async () => {
     try {
-      if (blocks.length === 0) {
+      console.log('Iniciando exportação PDF...');
+      console.log('Blocos disponíveis:', blocks);
+      console.log('Número de blocos:', blocks?.length || 0);
+
+      // Verificar se há blocos com melhor logging
+      if (!blocks || blocks.length === 0) {
+        console.log('Detalhes dos blocos:', {
+          blocks,
+          blocksLength: blocks?.length,
+          selectedFarmId,
+          currentFarm
+        });
+        
         toast({
           title: "Aviso",
-          description: "Nenhum bloco encontrado para exportar",
+          description: `Nenhum bloco encontrado para exportar. Fazenda selecionada: ${currentFarm?.nome || 'Nenhuma'}. Total de blocos: ${blocks?.length || 0}`,
           variant: "destructive"
         });
         return;
@@ -375,11 +419,13 @@ const AdvancedMapEditor: React.FC = () => {
       if (!bounds) {
         toast({
           title: "Erro",
-          description: "Não foi possível calcular os limites dos blocos",
+          description: "Não foi possível calcular os limites dos blocos. Verifique se os blocos possuem coordenadas válidas.",
           variant: "destructive"
         });
         return;
       }
+
+      console.log('Bounds calculados com sucesso:', bounds);
 
       // Ativar modo impressão e centralizar no mapa
       setPrintMode(true);
@@ -475,13 +521,17 @@ const AdvancedMapEditor: React.FC = () => {
       });
 
       // Desenhar blocos coloridos sobre o mapa
-      blocks.forEach(block => {
+      console.log('Desenhando blocos no PDF...');
+      blocks.forEach((block, index) => {
+        console.log(`Desenhando bloco ${index + 1}:`, block.nome || `Bloco ${index + 1}`);
+        
         let coordinates;
         if (typeof block.coordenadas === 'string') {
           coordinates = JSON.parse(block.coordenadas);
         } else if (Array.isArray(block.coordenadas)) {
           coordinates = block.coordenadas;
         } else {
+          console.log('Coordenadas inválidas para bloco:', block.id);
           return;
         }
 
@@ -489,14 +539,14 @@ const AdvancedMapEditor: React.FC = () => {
           ctx.beginPath();
           
           // Converter coordenadas geográficas para pixels do canvas
-          coordinates.forEach((coord: number[], index: number) => {
+          coordinates.forEach((coord: number[], coordIndex: number) => {
             const [lng, lat] = coord;
             
             // Normalizar coordenadas dentro dos bounds
             const x = ((lng - bounds.minLng) / bounds.width) * canvas.width;
             const y = ((bounds.maxLat - lat) / bounds.height) * canvas.height; // Inverter Y
             
-            if (index === 0) {
+            if (coordIndex === 0) {
               ctx.moveTo(x, y);
             } else {
               ctx.lineTo(x, y);
@@ -615,7 +665,7 @@ const AdvancedMapEditor: React.FC = () => {
       
       toast({
         title: "Sucesso",
-        description: "PDF exportado com escala 1:5 e blocos centralizados!"
+        description: `PDF exportado com sucesso! ${blocks.length} blocos foram desenhados no mapa com escala 1:5.`
       });
 
       // Desativar modo impressão
@@ -635,10 +685,13 @@ const AdvancedMapEditor: React.FC = () => {
   // Função para exportar Shapefile
   const exportShapefile = async () => {
     try {
-      if (blocks.length === 0) {
+      console.log('Iniciando exportação Shapefile...');
+      console.log('Blocos para exportar:', blocks);
+      
+      if (!blocks || blocks.length === 0) {
         toast({
           title: "Aviso",
-          description: "Nenhum bloco encontrado para exportar",
+          description: `Nenhum bloco encontrado para exportar. Total de blocos: ${blocks?.length || 0}`,
           variant: "destructive"
         });
         return;
@@ -673,11 +726,6 @@ const AdvancedMapEditor: React.FC = () => {
           }
         };
       });
-
-      const geoJSON = {
-        type: 'FeatureCollection',
-        features
-      };
 
       // Criar arquivos do shapefile usando JSZip
       const zip = new JSZip();
@@ -814,9 +862,6 @@ const AdvancedMapEditor: React.FC = () => {
       zip.file(`blocos_${farmName}.dbf`, dbfContent);
       zip.file(`blocos_${farmName}.prj`, prjContent);
       
-      // Adicionar arquivo GeoJSON para referência
-      zip.file(`blocos_${farmName}.geojson`, JSON.stringify(geoJSON, null, 2));
-      
       // Adicionar arquivo README com informações
       const readmeContent = `SHAPEFILE DOS BLOCOS AGRÍCOLAS
       
@@ -830,7 +875,6 @@ ARQUIVOS INCLUÍDOS:
 - .shx: Índice das geometrias  
 - .dbf: Atributos dos blocos
 - .prj: Sistema de coordenadas (WGS84)
-- .geojson: Dados em formato GeoJSON
 
 CAMPOS DOS DADOS:
 - ID: Identificador único
@@ -857,7 +901,7 @@ CAMPOS DOS DADOS:
 
       toast({
         title: "Sucesso",
-        description: "Shapefile exportado com sucesso! (SHP, SHX, DBF, PRJ + extras)"
+        description: `Shapefile exportado com sucesso! ${blocks.length} blocos incluídos (SHP, SHX, DBF, PRJ)`
       });
 
     } catch (error) {
@@ -893,7 +937,7 @@ CAMPOS DOS DADOS:
             </div>
             {currentFarm && (
               <div className="text-sm text-green-600 bg-green-50 px-3 py-1 rounded-full">
-                {currentFarm.nome} • {blocks.length} blocos
+                {currentFarm.nome} • {blocks?.length || 0} blocos
               </div>
             )}
           </div>
