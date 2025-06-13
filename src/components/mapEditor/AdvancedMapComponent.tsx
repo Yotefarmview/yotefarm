@@ -14,6 +14,7 @@ import { fromLonLat, toLonLat } from 'ol/proj';
 import { boundingExtent } from 'ol/extent';
 import * as turf from '@turf/turf';
 import GeoJSON from 'ol/format/GeoJSON';
+import { unByKey } from 'ol/Observable';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -82,6 +83,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const mapInstance = useRef<Map | null>(null);
   const vectorSource = useRef<VectorSource | null>(null);
   const measurementSource = useRef<VectorSource | null>(null);
+  const measureTooltipElement = useRef<HTMLDivElement | null>(null);
+  const measureTooltip = useRef<any>(null);
   const [currentDraw, setCurrentDraw] = useState<Draw | null>(null);
   const [currentModify, setCurrentModify] = useState<Modify | null>(null);
   const [currentSelect, setCurrentSelect] = useState<Select | null>(null);
@@ -406,6 +409,47 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     clearAllSelections();
   }, [clearAllSelections]);
 
+  // Create measurement tooltip
+  const createMeasureTooltip = useCallback(() => {
+    if (measureTooltipElement.current) {
+      measureTooltipElement.current.parentNode?.removeChild(measureTooltipElement.current);
+    }
+    
+    measureTooltipElement.current = document.createElement('div');
+    measureTooltipElement.current.className = 'ol-tooltip ol-tooltip-measure';
+    measureTooltipElement.current.style.cssText = `
+      position: absolute;
+      background-color: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 1000;
+    `;
+    
+    if (mapInstance.current) {
+      const overlay = new (await import('ol/Overlay')).default({
+        element: measureTooltipElement.current,
+        offset: [0, -15],
+        positioning: 'bottom-center',
+      });
+      mapInstance.current.addOverlay(overlay);
+      measureTooltip.current = overlay;
+    }
+  }, []);
+
+  // Format length for display
+  const formatLength = useCallback((line: LineString) => {
+    const length = getLength(line);
+    if (length > 100) {
+      return Math.round((length / 1000) * 100) / 100 + ' km';
+    } else {
+      return Math.round(length * 100) / 100 + ' m';
+    }
+  }, []);
+
   // Inicializar mapa - uma única vez
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
@@ -680,9 +724,38 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }),
       });
 
+      createMeasureTooltip();
+
+      let sketch: Feature | null = null;
+      let listener: any = null;
+
+      draw.on('drawstart', (event) => {
+        sketch = event.feature;
+        
+        listener = sketch?.getGeometry()?.on('change', (evt) => {
+          const geom = evt.target as LineString;
+          const tooltipCoord = geom.getLastCoordinate();
+          
+          if (measureTooltipElement.current && measureTooltip.current) {
+            measureTooltipElement.current.innerHTML = formatLength(geom);
+            measureTooltip.current.setPosition(tooltipCoord);
+          }
+        });
+      });
+
       draw.on('drawend', (event) => {
         const feature = event.feature;
         const geometry = feature.getGeometry() as LineString;
+        
+        // Clear the tooltip
+        if (measureTooltipElement.current) {
+          measureTooltipElement.current.className = 'ol-tooltip ol-tooltip-static';
+        }
+        
+        // Unregister the sketch listener
+        if (listener) {
+          unByKey(listener);
+        }
         
         if (geometry) {
           const coordinates = geometry.getCoordinates().map(coord => toLonLat(coord));
@@ -713,6 +786,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
           console.log('New measurement created:', measurementData);
         }
+
+        // Create new tooltip for next measurement
+        setTimeout(() => {
+          createMeasureTooltip();
+        }, 100);
       });
 
       map.addInteraction(draw);
@@ -829,7 +907,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       map.addInteraction(select);
       setCurrentSelect(select);
     }
-  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, updateFeatureStyle, createMeasurementStyle, measurements.length]);
+  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, updateFeatureStyle, createMeasurementStyle, measurements.length, createMeasureTooltip, formatLength]);
 
   // Centralizar mapa em coordenadas específicas
   useEffect(() => {
