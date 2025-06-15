@@ -39,7 +39,33 @@
     "edit": "Edit",
     "view": "View",
     "farmDetails": "Farm Details",
-    "blocks": "Blocks"
+    "blocks": "Blocks",
+    "manage": "Manage your farms and properties",
+    "farmNumber": "Farm Number",
+    "postalCode": "ZIP Code / Postal Code",
+    "postalCodePlaceholder": "Ex: 12345, SW1A 1AA, 75001",
+    "addressPlaceholder": "Enter address or use postal code above",
+    "fullAddress": "Full Address",
+    "coordinatesSaved": "Coordinates saved",
+    "totalAreaHectares": "Total Area (hectares)",
+    "areaPlaceholder": "Ex: 100.50",
+    "caneTypePlaceholder": "SP80-1842, RB92579, etc.",
+    "loadingFarms": "Loading farms...",
+    "errorLoading": "Error loading farms",
+    "noFarmsYet": "No farms registered yet",
+    "clickNewFarm": "Click 'New Farm' to get started",
+    "postalCodeFound": "Postal code found",
+    "addressUpdated": "Address updated",
+    "locationSelected": "Location selected",
+    "coordinates": "Coordinates",
+    "validationError": "Validation Error",
+    "areaTooLarge": "Total area must be less than 100,000,000",
+    "success": "Success",
+    "farmCreated": "Farm created successfully!",
+    "error": "Error",
+    "errorCreating": "Error creating farm",
+    "unknownError": "Unknown error",
+    "postalCode": "Postal Code"
   },
   "mapEditor": {
     "title": "Map Editor",
@@ -64,7 +90,7 @@
     "newApplication": "New Application",
     "product": "Product",
     "quantity": "Quantity (liters)",
-    "value": "Value (R$)",
+    "value": "Value (USD)",
     "targetBlock": "Target Block",
     "applicationDate": "Application Date",
     "nextApplication": "Next Application",
@@ -87,6 +113,7 @@
     "no": "No",
     "acres": "acres",
     "meters": "meters",
-    "liters": "liters"
+    "liters": "liters",
+    "hectares": "hectares"
   }
 }

@@ -63,8 +63,8 @@ const Farms: React.FC = () => {
           }));
           
           toast({
-            title: "Código postal encontrado",
-            description: `Endereço atualizado: ${endereco}`
+            title: t('farms.postalCodeFound'),
+            description: `${t('farms.addressUpdated')}: ${endereco}`
           });
         }
       } catch (error) {
@@ -82,8 +82,8 @@ const Farms: React.FC = () => {
     }));
     
     toast({
-      title: "Localização selecionada",
-      description: `Coordenadas: ${lat.toFixed(6)}, ${lon.toFixed(6)}`
+      title: t('farms.locationSelected'),
+      description: `${t('farms.coordinates')}: ${lat.toFixed(6)}, ${lon.toFixed(6)}`
     });
   };
 
@@ -103,8 +103,8 @@ const Farms: React.FC = () => {
       // Validação para evitar overflow do campo numérico
       if (areaValue >= 100000000) { // 10^8
         toast({
-          title: "Erro de Validação",
-          description: "A área total deve ser menor que 100.000.000",
+          title: t('farms.validationError'),
+          description: t('farms.areaTooLarge'),
           variant: "destructive"
         });
         return;
@@ -152,14 +152,14 @@ const Farms: React.FC = () => {
       setIsDialogOpen(false);
       
       toast({
-        title: "Sucesso",
-        description: "Fazenda criada com sucesso!"
+        title: t('farms.success'),
+        description: t('farms.farmCreated')
       });
     } catch (error) {
       console.error('Erro ao criar fazenda:', error);
       toast({
-        title: "Erro",
-        description: `Erro ao criar fazenda: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        title: t('farms.error'),
+        description: `${t('farms.errorCreating')}: ${error instanceof Error ? error.message : t('farms.unknownError')}`,
         variant: "destructive"
       });
     }
@@ -179,7 +179,7 @@ const Farms: React.FC = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-96">
-        <div className="text-lg">Carregando fazendas...</div>
+        <div className="text-lg">{t('farms.loadingFarms')}</div>
       </div>
     );
   }
@@ -187,7 +187,7 @@ const Farms: React.FC = () => {
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-96">
-        <div className="text-red-600">Erro ao carregar fazendas: {error}</div>
+        <div className="text-red-600">{t('farms.errorLoading')}: {error}</div>
       </div>
     );
   }
@@ -204,7 +204,7 @@ const Farms: React.FC = () => {
             {t('farms.title')}
           </h1>
           <p className="text-gray-600 mt-1">
-            Gerencie suas fazendas e propriedades
+            {t('farms.manage')}
           </p>
         </div>
         
@@ -231,7 +231,7 @@ const Farms: React.FC = () => {
               </div>
               
               <div>
-                <Label htmlFor="numero_fazenda">Número da Fazenda</Label>
+                <Label htmlFor="numero_fazenda">{t('farms.farmNumber')}</Label>
                 <Input
                   id="numero_fazenda"
                   value={newFarm.numero_fazenda}
@@ -241,12 +241,12 @@ const Farms: React.FC = () => {
               </div>
 
               <div>
-                <Label htmlFor="cep">CEP / Código Postal</Label>
+                <Label htmlFor="cep">{t('farms.postalCode')}</Label>
                 <Input
                   id="cep"
                   value={newFarm.cep}
                   onChange={(e) => handlePostalCodeSearch(e.target.value)}
-                  placeholder="Ex: 12345-678, SW1A 1AA, 75001"
+                  placeholder={t('farms.postalCodePlaceholder')}
                 />
               </div>
 
@@ -255,26 +255,26 @@ const Farms: React.FC = () => {
                 <LocationSearch
                   onLocationSelect={handleLocationSelect}
                   onAddressUpdate={handleAddressUpdate}
-                  placeholder="Digite o endereço ou use o código postal acima"
+                  placeholder={t('farms.addressPlaceholder')}
                 />
                 <Input
                   id="localizacao"
                   value={newFarm.localizacao}
                   onChange={(e) => setNewFarm({...newFarm, localizacao: e.target.value})}
-                  placeholder="Endereço completo"
+                  placeholder={t('farms.fullAddress')}
                   className="mt-2"
                   required
                 />
                 
                 {newFarm.latitude && newFarm.longitude && (
                   <div className="mt-2 text-xs text-gray-500">
-                    Coordenadas salvas: {newFarm.latitude.toFixed(6)}, {newFarm.longitude.toFixed(6)}
+                    {t('farms.coordinatesSaved')}: {newFarm.latitude.toFixed(6)}, {newFarm.longitude.toFixed(6)}
                   </div>
                 )}
               </div>
 
               <div>
-                <Label htmlFor="area_total">{t('farms.totalArea')} (hectares)</Label>
+                <Label htmlFor="area_total">{t('farms.totalAreaHectares')}</Label>
                 <Input
                   id="area_total"
                   type="number"
@@ -282,7 +282,7 @@ const Farms: React.FC = () => {
                   max="99999999"
                   value={newFarm.area_total}
                   onChange={(e) => setNewFarm({...newFarm, area_total: e.target.value})}
-                  placeholder="Ex: 100.50"
+                  placeholder={t('farms.areaPlaceholder')}
                   required
                 />
               </div>
@@ -293,7 +293,7 @@ const Farms: React.FC = () => {
                   id="tipo_cana"
                   value={newFarm.tipo_cana}
                   onChange={(e) => setNewFarm({...newFarm, tipo_cana: e.target.value})}
-                  placeholder="SP80-1842, RB92579, etc."
+                  placeholder={t('farms.caneTypePlaceholder')}
                   required
                 />
               </div>
@@ -331,7 +331,7 @@ const Farms: React.FC = () => {
                 </h3>
                 {farm.numero_fazenda && (
                   <p className="text-sm text-gray-500">
-                    Fazenda: {farm.numero_fazenda}
+                    {t('farms.farmNumber')}: {farm.numero_fazenda}
                   </p>
                 )}
                 <div className="flex items-center gap-1 text-gray-500 text-sm mt-1">
@@ -340,7 +340,7 @@ const Farms: React.FC = () => {
                 </div>
                 {farm.cep && (
                   <p className="text-xs text-gray-400 mt-1">
-                    CEP: {farm.cep}
+                    {t('farms.postalCode')}: {farm.cep}
                   </p>
                 )}
               </div>
@@ -348,16 +348,16 @@ const Farms: React.FC = () => {
 
             <div className="space-y-2 mb-4">
               <div className="flex justify-between">
-                <span className="text-gray-600">Área Total:</span>
-                <span className="font-medium">{farm.area_total} hectares</span>
+                <span className="text-gray-600">{t('farms.totalAreaHectares')}:</span>
+                <span className="font-medium">{farm.area_total} {t('common.hectares')}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-600">Tipo de Cana:</span>
+                <span className="text-gray-600">{t('farms.caneType')}:</span>
                 <span className="font-medium">{farm.tipo_cana}</span>
               </div>
               {farm.latitude && farm.longitude && (
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Coordenadas:</span>
+                  <span className="text-gray-600">{t('farms.coordinates')}:</span>
                   <span className="font-medium text-xs">
                     {farm.latitude.toFixed(4)}, {farm.longitude.toFixed(4)}
                   </span>
@@ -387,10 +387,10 @@ const Farms: React.FC = () => {
       {farms.length === 0 && (
         <div className="text-center py-12">
           <div className="text-gray-500 text-lg mb-4">
-            Nenhuma fazenda cadastrada ainda
+            {t('farms.noFarmsYet')}
           </div>
           <p className="text-gray-400">
-            Clique em "Nova Fazenda" para começar
+            {t('farms.clickNewFarm')}
           </p>
         </div>
       )}

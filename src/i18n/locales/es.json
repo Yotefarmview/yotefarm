@@ -39,7 +39,33 @@
     "edit": "Editar",
     "view": "Ver",
     "farmDetails": "Detalles de la Granja",
-    "blocks": "Bloques"
+    "blocks": "Bloques",
+    "manage": "Gestiona tus granjas y propiedades",
+    "farmNumber": "Número de Granja",
+    "postalCode": "Código Postal",
+    "postalCodePlaceholder": "Ej: 12345, SW1A 1AA, 75001",
+    "addressPlaceholder": "Ingrese dirección o use código postal arriba",
+    "fullAddress": "Dirección Completa",
+    "coordinatesSaved": "Coordenadas guardadas",
+    "totalAreaHectares": "Área Total (hectáreas)",
+    "areaPlaceholder": "Ej: 100.50",
+    "caneTypePlaceholder": "SP80-1842, RB92579, etc.",
+    "loadingFarms": "Cargando granjas...",
+    "errorLoading": "Error al cargar granjas",
+    "noFarmsYet": "Aún no hay granjas registradas",
+    "clickNewFarm": "Haz clic en 'Nueva Granja' para comenzar",
+    "postalCodeFound": "Código postal encontrado",
+    "addressUpdated": "Dirección actualizada",
+    "locationSelected": "Ubicación seleccionada",
+    "coordinates": "Coordenadas",
+    "validationError": "Error de Validación",
+    "areaTooLarge": "El área total debe ser menor a 100.000.000",
+    "success": "Éxito",
+    "farmCreated": "¡Granja creada exitosamente!",
+    "error": "Error",
+    "errorCreating": "Error al crear granja",
+    "unknownError": "Error desconocido",
+    "postalCode": "Código Postal"
   },
   "mapEditor": {
     "title": "Editor de Mapas",
@@ -87,6 +113,7 @@
     "no": "No",
     "acres": "acres",
     "meters": "metros",
-    "liters": "litros"
+    "liters": "litros",
+    "hectares": "hectáreas"
   }
 }

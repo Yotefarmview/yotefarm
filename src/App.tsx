@@ -12,6 +12,7 @@ import AdvancedMapEditor from "./pages/AdvancedMapEditor";
 import Applications from "./pages/Applications";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
+import "./i18n";
 
 const queryClient = new QueryClient();
 
