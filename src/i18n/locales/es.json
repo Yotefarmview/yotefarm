@@ -1,0 +1,92 @@
+
+{
+  "app": {
+    "title": "YOTE Farmview",
+    "subtitle": "Gestión Agrícola Avanzada"
+  },
+  "navigation": {
+    "dashboard": "Panel de Control",
+    "farms": "Granjas",
+    "mapEditor": "Editor de Mapas",
+    "applications": "Aplicaciones",
+    "settings": "Configuración"
+  },
+  "dashboard": {
+    "title": "Panel de Control",
+    "totalAcres": "Total de Acres Plantados",
+    "activeBlocks": "Bloques Activos",
+    "lastHarvest": "Última Cosecha",
+    "nextApplication": "Próxima Aplicación",
+    "productsApplied": "Productos Aplicados (Últimos 30 Días)",
+    "caneDistribution": "Distribución de Tipos de Caña",
+    "blocksTable": "Bloques de la Granja",
+    "blockName": "Nombre del Bloque",
+    "area": "Área",
+    "productApplied": "Producto Aplicado",
+    "plantingDate": "Fecha de Plantación",
+    "lastHarvest": "Última Cosecha",
+    "nextHarvest": "Próxima Cosecha",
+    "blockColor": "Color del Bloque"
+  },
+  "farms": {
+    "title": "Granjas",
+    "newFarm": "Nueva Granja",
+    "farmName": "Nombre de la Granja",
+    "location": "Ubicación",
+    "totalArea": "Área Total (acres)",
+    "caneType": "Tipo de Caña",
+    "save": "Guardar",
+    "edit": "Editar",
+    "view": "Ver",
+    "farmDetails": "Detalles de la Granja",
+    "blocks": "Bloques"
+  },
+  "mapEditor": {
+    "title": "Editor de Mapas",
+    "drawPolygon": "Dibujar Polígono",
+    "removeBackground": "Quitar Fondo",
+    "blockForm": "Información del Bloque",
+    "blockName": "Nombre del Bloque",
+    "color": "Color",
+    "plantingDate": "Fecha de Plantación",
+    "lastApplication": "Última Aplicación",
+    "productApplied": "Producto Aplicado",
+    "nextApplication": "Próxima Aplicación",
+    "nextHarvest": "Próxima Cosecha",
+    "caneType": "Tipo de Caña",
+    "hasDrain": "¿Tiene Drenaje?",
+    "area": "Área",
+    "perimeter": "Perímetro",
+    "save": "Guardar Bloque"
+  },
+  "applications": {
+    "title": "Aplicaciones",
+    "newApplication": "Nueva Aplicación",
+    "product": "Producto",
+    "quantity": "Cantidad (litros)",
+    "value": "Valor (USD)",
+    "targetBlock": "Bloque Objetivo",
+    "applicationDate": "Fecha de Aplicación",
+    "nextApplication": "Próxima Aplicación",
+    "save": "Guardar",
+    "history": "Historial de Aplicaciones"
+  },
+  "common": {
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "view": "Ver",
+    "back": "Volver",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "export": "Exportar",
+    "import": "Importar",
+    "yes": "Sí",
+    "no": "No",
+    "acres": "acres",
+    "meters": "metros",
+    "liters": "litros"
+  }
+}
