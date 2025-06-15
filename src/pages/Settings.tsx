@@ -1,26 +1,31 @@
-
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Building2, Globe, Info } from 'lucide-react';
-
 const Settings: React.FC = () => {
-  const { t, i18n } = useTranslation();
-
+  const {
+    t,
+    i18n
+  } = useTranslation();
   const handleLanguageChange = (language: string) => {
     i18n.changeLanguage(language);
   };
-
-  const languages = [
-    { code: 'en', name: 'English', flag: '🇺🇸' },
-    { code: 'pt-BR', name: 'Português (Brasil)', flag: '🇧🇷' },
-    { code: 'es', name: 'Español', flag: '🇪🇸' }
-  ];
-
-  return (
-    <div className="space-y-6">
+  const languages = [{
+    code: 'en',
+    name: 'English',
+    flag: '🇺🇸'
+  }, {
+    code: 'pt-BR',
+    name: 'Português (Brasil)',
+    flag: '🇧🇷'
+  }, {
+    code: 'es',
+    name: 'Español',
+    flag: '🇪🇸'
+  }];
+  return <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">{t('navigation.settings')}</h1>
         <p className="text-gray-600 mt-2">Manage your application preferences and company information</p>
@@ -80,7 +85,7 @@ const Settings: React.FC = () => {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700">Build Date</label>
-              <p className="text-gray-900">December 2024</p>
+              <p className="text-gray-900">June 2025</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700">License</label>
@@ -108,14 +113,12 @@ const Settings: React.FC = () => {
                   <SelectValue placeholder="Select language" />
                 </SelectTrigger>
                 <SelectContent>
-                  {languages.map((language) => (
-                    <SelectItem key={language.code} value={language.code}>
+                  {languages.map(language => <SelectItem key={language.code} value={language.code}>
                       <div className="flex items-center gap-2">
                         <span>{language.flag}</span>
                         <span>{language.name}</span>
                       </div>
-                    </SelectItem>
-                  ))}
+                    </SelectItem>)}
                 </SelectContent>
               </Select>
               <p className="text-xs text-gray-500 mt-1">
@@ -125,8 +128,6 @@ const Settings: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Settings;
