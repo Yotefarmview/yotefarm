@@ -1,15 +1,52 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Globe, Info } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Building2, Globe, Info, Edit, Save, X } from 'lucide-react';
 
 const Settings: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const [isEditing, setIsEditing] = useState(false);
+  
+  // Company information state
+  const [companyInfo, setCompanyInfo] = useState({
+    name: 'YOTE Farmview',
+    taxId: '33-4462377',
+    industry: 'Agricultural Technology',
+    location: 'United States'
+  });
+  
+  const [editedInfo, setEditedInfo] = useState(companyInfo);
 
   const handleLanguageChange = (language: string) => {
     i18n.changeLanguage(language);
+  };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+    setEditedInfo(companyInfo);
+  };
+
+  const handleSave = () => {
+    setCompanyInfo(editedInfo);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditedInfo(companyInfo);
+    setIsEditing(false);
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setEditedInfo(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   const languages = [
@@ -29,30 +66,95 @@ const Settings: React.FC = () => {
         {/* Company Information */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Building2 className="w-5 h-5" />
-              Company Information
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="w-5 h-5" />
+                Company Information
+              </CardTitle>
+              {!isEditing ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEdit}
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit
+                </Button>
+              ) : (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleCancel}
+                    className="flex items-center gap-2"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSave}
+                    className="flex items-center gap-2"
+                  >
+                    <Save className="w-4 h-4" />
+                    Save
+                  </Button>
+                </div>
+              )}
+            </div>
             <CardDescription>
-              Information about YOTE Farmview
+              Information about your company
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <label className="text-sm font-medium text-gray-700">Company Name</label>
-              <p className="text-lg font-semibold text-gray-900">YOTE Farmview</p>
+              <Label className="text-sm font-medium text-gray-700">Company Name</Label>
+              {isEditing ? (
+                <Input
+                  value={editedInfo.name}
+                  onChange={(e) => handleInputChange('name', e.target.value)}
+                  className="mt-1"
+                />
+              ) : (
+                <p className="text-lg font-semibold text-gray-900">{companyInfo.name}</p>
+              )}
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Tax ID (EIN)</label>
-              <p className="text-gray-900 font-mono">33-4462377</p>
+              <Label className="text-sm font-medium text-gray-700">Tax ID (EIN)</Label>
+              {isEditing ? (
+                <Input
+                  value={editedInfo.taxId}
+                  onChange={(e) => handleInputChange('taxId', e.target.value)}
+                  className="mt-1 font-mono"
+                />
+              ) : (
+                <p className="text-gray-900 font-mono">{companyInfo.taxId}</p>
+              )}
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Industry</label>
-              <p className="text-gray-900">Agricultural Technology</p>
+              <Label className="text-sm font-medium text-gray-700">Industry</Label>
+              {isEditing ? (
+                <Input
+                  value={editedInfo.industry}
+                  onChange={(e) => handleInputChange('industry', e.target.value)}
+                  className="mt-1"
+                />
+              ) : (
+                <p className="text-gray-900">{companyInfo.industry}</p>
+              )}
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-700">Location</label>
-              <p className="text-gray-900">United States</p>
+              <Label className="text-sm font-medium text-gray-700">Location</Label>
+              {isEditing ? (
+                <Input
+                  value={editedInfo.location}
+                  onChange={(e) => handleInputChange('location', e.target.value)}
+                  className="mt-1"
+                />
+              ) : (
+                <p className="text-gray-900">{companyInfo.location}</p>
+              )}
             </div>
           </CardContent>
         </Card>
