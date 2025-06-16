@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -53,9 +54,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   }} className="bg-white border-r border-gray-200 h-screen flex flex-col shadow-lg">
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 flex items-center justify-center">
-            <img alt="YOTE Farmview Logo" className="w-8 h-8 object-contain" src="/lovable-uploads/c525fde2-6439-495b-b9e2-3ed05cb0c2a3.png" />
+        <div className="flex items-center gap-4">
+          <div className="w-12 h-12 flex items-center justify-center">
+            <img alt="YOTE Farmview Logo" className="w-12 h-12 object-contain" src="/lovable-uploads/c525fde2-6439-495b-b9e2-3ed05cb0c2a3.png" />
           </div>
           {!isCollapsed && <motion.div initial={{
           opacity: 0
@@ -63,9 +64,9 @@ const Sidebar: React.FC<SidebarProps> = ({
           opacity: 1
         }} transition={{
           delay: 0.2
-        }}>
-              <h1 className="font-bold text-gray-800">{t('app.title')}</h1>
-              <p className="text-xs text-gray-500">{t('app.subtitle')}</p>
+        }} className="ml-2">
+              <h1 className="font-bold text-gray-800 text-lg">{t('app.title')}</h1>
+              <p className="text-sm text-gray-500">{t('app.subtitle')}</p>
             </motion.div>}
         </div>
       </div>
