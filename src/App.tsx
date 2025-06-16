@@ -10,6 +10,7 @@ import Farms from "./pages/Farms";
 import MapEditor from "./pages/MapEditor";
 import AdvancedMapEditor from "./pages/AdvancedMapEditor";
 import Applications from "./pages/Applications";
+import Team from "./pages/Team";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import "./i18n";
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/map-editor" element={<MapEditor />} />
             <Route path="/advanced-map-editor" element={<AdvancedMapEditor />} />
             <Route path="/applications" element={<Applications />} />
+            <Route path="/team" element={<Team />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

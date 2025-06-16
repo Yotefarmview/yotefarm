@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -9,7 +8,8 @@ import {
   MapPin, 
   Sprout, 
   Settings,
-  Globe
+  Globe,
+  Users
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -26,6 +26,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, onToggle }) => {
     { path: '/farms', icon: MapPin, label: t('navigation.farms') },
     { path: '/advanced-map-editor', icon: Map, label: 'Advanced Map Editor' },
     { path: '/applications', icon: Sprout, label: t('navigation.applications') },
+    { path: '/team', icon: Users, label: 'Team' },
     { path: '/settings', icon: Settings, label: t('navigation.settings') }
   ];
 
