@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -45,7 +44,7 @@ const Settings: React.FC = () => {
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700">Tax ID (EIN)</label>
-              <p className="text-gray-900 font-mono">12-3456789</p>
+              <p className="text-gray-900 font-mono">33-4462377</p>
             </div>
             <div>
               <label className="text-sm font-medium text-gray-700">Industry</label>
