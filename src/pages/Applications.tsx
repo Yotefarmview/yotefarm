@@ -22,6 +22,7 @@ interface Application {
   bloco_alvo: string;
   data_aplicacao: string;
   proxima_aplicacao: string;
+  acres_aplicados: number;
 }
 
 const Applications: React.FC = () => {
@@ -34,7 +35,8 @@ const Applications: React.FC = () => {
       valor: 2500,
       bloco_alvo: 'Bloco Norte A',
       data_aplicacao: '2024-11-20',
-      proxima_aplicacao: '2024-12-20'
+      proxima_aplicacao: '2024-12-20',
+      acres_aplicados: 25
     },
     {
       id: '2',
@@ -43,7 +45,8 @@ const Applications: React.FC = () => {
       valor: 3200,
       bloco_alvo: 'Bloco Sul B',
       data_aplicacao: '2024-11-18',
-      proxima_aplicacao: '2024-12-18'
+      proxima_aplicacao: '2024-12-18',
+      acres_aplicados: 35
     }
   ]);
 
@@ -53,7 +56,8 @@ const Applications: React.FC = () => {
     valor: '',
     bloco_alvo: '',
     data_aplicacao: '',
-    proxima_aplicacao: ''
+    proxima_aplicacao: '',
+    acres_aplicados: ''
   });
 
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -68,7 +72,8 @@ const Applications: React.FC = () => {
       valor: parseFloat(newApplication.valor),
       bloco_alvo: newApplication.bloco_alvo,
       data_aplicacao: newApplication.data_aplicacao,
-      proxima_aplicacao: newApplication.proxima_aplicacao
+      proxima_aplicacao: newApplication.proxima_aplicacao,
+      acres_aplicados: parseFloat(newApplication.acres_aplicados)
     };
 
     setApplications([...applications, application]);
@@ -78,13 +83,15 @@ const Applications: React.FC = () => {
       valor: '',
       bloco_alvo: '',
       data_aplicacao: '',
-      proxima_aplicacao: ''
+      proxima_aplicacao: '',
+      acres_aplicados: ''
     });
     setIsDialogOpen(false);
   };
 
   const totalValue = applications.reduce((sum, app) => sum + app.valor, 0);
   const totalQuantity = applications.reduce((sum, app) => sum + app.quantidade, 0);
+  const totalAcres = applications.reduce((sum, app) => sum + app.acres_aplicados, 0);
 
   return (
     <div className="space-y-6">
@@ -98,7 +105,7 @@ const Applications: React.FC = () => {
             {t('applications.title')}
           </h1>
           <p className="text-gray-600 mt-1">
-            Controle de aplicações de produtos agrícolas
+            Agricultural product application control
           </p>
         </div>
         
@@ -131,6 +138,17 @@ const Applications: React.FC = () => {
                   step="0.1"
                   value={newApplication.quantidade}
                   onChange={(e) => setNewApplication({...newApplication, quantidade: e.target.value})}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="acres_aplicados">Applied Area (acres)</Label>
+                <Input
+                  id="acres_aplicados"
+                  type="number"
+                  step="0.1"
+                  value={newApplication.acres_aplicados}
+                  onChange={(e) => setNewApplication({...newApplication, acres_aplicados: e.target.value})}
                   required
                 />
               </div>
@@ -191,8 +209,9 @@ const Applications: React.FC = () => {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Total Aplicado</p>
+              <p className="text-sm font-medium text-gray-600 mb-1">Total Applied</p>
               <p className="text-2xl font-bold text-gray-900">{totalQuantity} L</p>
+              <p className="text-sm text-gray-500">{totalAcres} acres</p>
             </div>
             <div className="w-12 h-12 bg-blue-500 rounded-lg flex items-center justify-center">
               <Sprout className="w-6 h-6 text-white" />
@@ -208,8 +227,8 @@ const Applications: React.FC = () => {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Valor Total</p>
-              <p className="text-2xl font-bold text-gray-900">R$ {totalValue.toLocaleString()}</p>
+              <p className="text-sm font-medium text-gray-600 mb-1">Total Value</p>
+              <p className="text-2xl font-bold text-gray-900">$ {totalValue.toLocaleString()}</p>
             </div>
             <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
               <DollarSign className="w-6 h-6 text-white" />
@@ -225,7 +244,7 @@ const Applications: React.FC = () => {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 mb-1">Aplicações</p>
+              <p className="text-sm font-medium text-gray-600 mb-1">Applications</p>
               <p className="text-2xl font-bold text-gray-900">{applications.length}</p>
             </div>
             <div className="w-12 h-12 bg-purple-500 rounded-lg flex items-center justify-center">
@@ -257,6 +276,9 @@ const Applications: React.FC = () => {
                   {t('applications.quantity')}
                 </th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">
+                  Applied Area
+                </th>
+                <th className="text-left py-3 px-4 font-medium text-gray-700">
                   {t('applications.value')}
                 </th>
                 <th className="text-left py-3 px-4 font-medium text-gray-700">
@@ -286,7 +308,10 @@ const Applications: React.FC = () => {
                     {application.quantidade} L
                   </td>
                   <td className="py-3 px-4 text-gray-600">
-                    R$ {application.valor.toLocaleString()}
+                    {application.acres_aplicados} acres
+                  </td>
+                  <td className="py-3 px-4 text-gray-600">
+                    $ {application.valor.toLocaleString()}
                   </td>
                   <td className="py-3 px-4 text-gray-600">
                     {application.bloco_alvo}
