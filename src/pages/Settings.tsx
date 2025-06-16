@@ -1,31 +1,26 @@
+
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Building2, Globe, Info } from 'lucide-react';
+
 const Settings: React.FC = () => {
-  const {
-    t,
-    i18n
-  } = useTranslation();
+  const { t, i18n } = useTranslation();
+
   const handleLanguageChange = (language: string) => {
     i18n.changeLanguage(language);
   };
-  const languages = [{
-    code: 'en',
-    name: 'English',
-    flag: '🇺🇸'
-  }, {
-    code: 'pt-BR',
-    name: 'Português (Brasil)',
-    flag: '🇧🇷'
-  }, {
-    code: 'es',
-    name: 'Español',
-    flag: '🇪🇸'
-  }];
-  return <div className="space-y-6">
+
+  const languages = [
+    { code: 'en', name: 'English', flag: '🇺🇸' },
+    { code: 'pt-BR', name: 'Português (Brasil)', flag: '🇧🇷' },
+    { code: 'es', name: 'Español', flag: '🇪🇸' }
+  ];
+
+  return (
+    <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-gray-900">{t('navigation.settings')}</h1>
         <p className="text-gray-600 mt-2">Manage your application preferences and company information</p>
@@ -106,28 +101,41 @@ const Settings: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700">Application Language</label>
-              <Select value={i18n.language} onValueChange={handleLanguageChange}>
-                <SelectTrigger className="w-full max-w-xs">
-                  <SelectValue placeholder="Select language" />
-                </SelectTrigger>
-                <SelectContent>
-                  {languages.map(language => <SelectItem key={language.code} value={language.code}>
-                      <div className="flex items-center gap-2">
-                        <span>{language.flag}</span>
-                        <span>{language.name}</span>
-                      </div>
-                    </SelectItem>)}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-gray-500 mt-1">
-                Changes will be applied immediately
-              </p>
+            <div className="flex items-center justify-between">
+              <div className="space-y-2 flex-1">
+                <label className="text-sm font-medium text-gray-700">Application Language</label>
+                <Select value={i18n.language} onValueChange={handleLanguageChange}>
+                  <SelectTrigger className="w-full max-w-xs">
+                    <SelectValue placeholder="Select language" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {languages.map(language => (
+                      <SelectItem key={language.code} value={language.code}>
+                        <div className="flex items-center gap-2">
+                          <span>{language.flag}</span>
+                          <span>{language.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Changes will be applied immediately
+                </p>
+              </div>
+              <div className="ml-8">
+                <img 
+                  src="/lovable-uploads/94965d98-6374-44c6-bcf3-e20ed2a15c77.png" 
+                  alt="YOTE Farmview Logo" 
+                  className="h-16 w-auto object-contain"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
-    </div>;
+    </div>
+  );
 };
+
 export default Settings;
