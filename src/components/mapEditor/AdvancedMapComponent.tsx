@@ -539,8 +539,13 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }),
       });
 
-      // Improved click event for feature selection with single-click deselection
+      // Improved click event for feature selection - only when NOT in edit mode
       map.on('click', (event) => {
+        // Skip click handling if we're in edit mode - let the Select interaction handle it
+        if (drawingMode === 'edit') {
+          return;
+        }
+        
         // Clear any existing timeout
         if (clickTimeout) {
           clearTimeout(clickTimeout);
@@ -824,14 +829,20 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       setCurrentDraw(draw);
 
     } else if (drawingMode === 'edit') {
-      // Modo edição
+      // Modo edição - melhorado para funcionar corretamente
+      console.log('Entering edit mode');
+      
       const select = new Select({
+        condition: (event) => {
+          // Only select on single click, not on drag
+          return event.type === 'singleclick';
+        },
         style: (feature) => {
           if (!(feature instanceof Feature)) return undefined;
           const blockData = feature.get('blockData');
           return createBlockStyle(
             blockData?.cor || feature.get('color') || selectedColor,
-            transparency,
+            blockData?.transparencia || feature.get('transparency') || transparency,
             blockData?.nome || feature.get('name'),
             blockData?.area_acres,
             true
@@ -843,17 +854,45 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         features: select.getFeatures(),
       });
 
+      // Handle selection in edit mode
       select.on('select', (event) => {
+        console.log('Select event in edit mode:', event);
         const selectedFeatures = event.selected;
+        const deselectedFeatures = event.deselected;
+        
+        // Clear previous selections if any
+        if (deselectedFeatures.length > 0) {
+          deselectedFeatures.forEach(feature => {
+            if (feature instanceof Feature && feature.get('blockData')) {
+              const blockData = feature.get('blockData');
+              updateFeatureStyle(
+                feature,
+                blockData?.nome || feature.get('name') || '',
+                blockData?.cor || feature.get('color') || selectedColor,
+                blockData?.transparencia || feature.get('transparency') || transparency,
+                blockData?.area_acres,
+                false
+              );
+            }
+          });
+        }
+        
+        // Handle new selection
         if (selectedFeatures.length > 0) {
           const feature = selectedFeatures[0];
           if (feature instanceof Feature && feature.get('blockData')) {
+            console.log('Feature selected for editing in edit mode');
             handleBlockClick(feature);
           }
+        } else {
+          // No feature selected, clear editing state
+          clearAllSelections();
         }
       });
 
+      // Handle geometry modification
       modify.on('modifyend', (event) => {
+        console.log('Modify end event:', event);
         const features = event.features.getArray();
         features.forEach(feature => {
           if (!(feature instanceof Feature)) return;
@@ -879,6 +918,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
               feature,
               blockData?.nome || feature.get('name') || '',
               blockData?.cor || feature.get('color') || selectedColor,
+              blockData?.transparencia || feature.get('transparency') || transparency,
               metrics.area_acres,
               feature.get('isSelected') || false
             );
@@ -888,7 +928,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
               ...metrics
             });
             
-            console.log('Block modified:', blockId, metrics);
+            console.log('Block modified in edit mode:', blockId, metrics);
           }
         });
       });
@@ -934,7 +974,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       map.addInteraction(select);
       setCurrentSelect(select);
     }
-  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, updateFeatureStyle, createMeasurementStyle, measurements.length, createMeasureTooltip, formatLength]);
+  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, updateFeatureStyle, createMeasurementStyle, measurements.length, createMeasureTooltip, formatLength, clearAllSelections]);
 
   // Centralizar mapa em coordenadas específicas
   useEffect(() => {
