@@ -116,9 +116,12 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const createBlockStyle = useCallback((color: string, transparency: number, name?: string, area_acres?: number, isSelected?: boolean) => {
     const displayText = name ? `${name}\n${area_acres?.toFixed(4) || 0} acres` : '';
     
+    // Convert transparency to alpha (0 = fully transparent, 1 = fully opaque)
+    const alpha = Math.round((1 - transparency) * 255).toString(16).padStart(2, '0');
+    
     return new Style({
       fill: new Fill({
-        color: color + Math.round(transparency * 255).toString(16).padStart(2, '0'),
+        color: color + alpha,
       }),
       stroke: new Stroke({
         color: isSelected ? '#FFD700' : color,
@@ -221,7 +224,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         feature, 
         blockData?.nome || feature.get('name') || '',
         blockData?.cor || feature.get('color') || '#10B981',
-        blockData?.transparencia || feature.get('transparency') || 0.4,
+        blockData?.transparencia !== undefined ? blockData.transparencia : feature.get('transparency') || 0.4,
         blockData?.area_acres,
         false
       );
@@ -472,7 +475,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           
           return createBlockStyle(
             blockData?.cor || feature.get('color') || selectedColor,
-            blockData?.transparencia || feature.get('transparency') || transparency,
+            blockData?.transparencia !== undefined ? blockData.transparencia : feature.get('transparency') || transparency,
             blockData?.nome || feature.get('name'),
             blockData?.area_acres,
             isSelected
@@ -931,6 +934,122 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
   }, [centerCoordinates, boundingBox]);
 
+  // Quick Edit Panel - Block
+  const editPanel = editingBlock && selectedFeature && (
+    <div className="absolute top-4 right-4 z-50">
+      <Card className="w-80 bg-white shadow-lg border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Edit2 className="w-5 h-5" />
+            Edição Rápida - Bloco
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="quick-edit-name">Nome do Bloco</Label>
+            <Input
+              id="quick-edit-name"
+              value={editForm.name}
+              onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+              placeholder="Digite o nome do bloco"
+            />
+          </div>
+          
+          <div>
+            <Label htmlFor="quick-edit-color">Cor do Bloco</Label>
+            <UISelect 
+              value={editForm.color} 
+              onValueChange={(value) => setEditForm({...editForm, color: value})}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white border shadow-lg z-50">
+                {colorOptions.map((color) => (
+                  <SelectItem key={color.value} value={color.value}>
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className="w-4 h-4 rounded-full border border-gray-300"
+                        style={{ backgroundColor: color.value }}
+                      />
+                      <div>
+                        <span className="font-medium">{color.label}</span>
+                        <span className="text-xs text-gray-500 ml-2">{color.name}</span>
+                      </div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </UISelect>
+          </div>
+
+          <div>
+            <Label htmlFor="transparency-slider">
+              Transparência: {Math.round((1 - editForm.transparency) * 100)}%
+            </Label>
+            <Slider
+              id="transparency-slider"
+              value={[editForm.transparency]}
+              onValueChange={(value) => setEditForm({...editForm, transparency: value[0]})}
+              max={1}
+              min={0}
+              step={0.01}
+              className="w-full mt-2"
+            />
+          </div>
+
+          {/* Display block metrics - only acres */}
+          {editingBlock && (
+            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+              <h4 className="font-medium text-green-900 mb-2">Dados do Bloco</h4>
+              <div className="grid grid-cols-1 gap-2 text-sm">
+                <div>
+                  <span className="text-green-700">ID:</span>
+                  <p className="font-medium text-xs">{selectedFeature.get('blockId')}</p>
+                </div>
+                <div>
+                  <span className="text-green-700">Área:</span>
+                  <p className="font-medium">{editingBlock.area_acres?.toFixed(4) || 0} acres</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="flex gap-2 pt-2">
+            <Button 
+              onClick={handleSaveEdit}
+              className="flex-1 bg-green-600 hover:bg-green-700"
+              size="sm"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Salvar
+            </Button>
+            <Button 
+              onClick={handleDeleteEdit}
+              variant="destructive"
+              size="sm"
+              className="flex-1"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Deletar
+            </Button>
+            <Button 
+              onClick={handleCancelEdit}
+              variant="outline"
+              size="sm"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="text-xs text-gray-500 pt-2">
+            <strong>Dica:</strong> Clique em qualquer bloco no mapa para editar rapidamente seu nome e cor.
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   return (
     <div className="relative w-full h-full">
       {!mapReady && (
@@ -951,121 +1070,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }}
       />
       
-      {/* Quick Edit Panel - Block */}
-      {editingBlock && selectedFeature && (
-        <div className="absolute top-4 right-4 z-50">
-          <Card className="w-80 bg-white shadow-lg border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Edit2 className="w-5 h-5" />
-                Edição Rápida - Bloco
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="quick-edit-name">Nome do Bloco</Label>
-                <Input
-                  id="quick-edit-name"
-                  value={editForm.name}
-                  onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                  placeholder="Digite o nome do bloco"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="quick-edit-color">Cor do Bloco</Label>
-                <UISelect 
-                  value={editForm.color} 
-                  onValueChange={(value) => setEditForm({...editForm, color: value})}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white border shadow-lg z-50">
-                    {colorOptions.map((color) => (
-                      <SelectItem key={color.value} value={color.value}>
-                        <div className="flex items-center gap-3">
-                          <div 
-                            className="w-4 h-4 rounded-full border border-gray-300"
-                            style={{ backgroundColor: color.value }}
-                          />
-                          <div>
-                            <span className="font-medium">{color.label}</span>
-                            <span className="text-xs text-gray-500 ml-2">{color.name}</span>
-                          </div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </UISelect>
-              </div>
-
-              <div>
-                <Label htmlFor="transparency-slider">
-                  Transparência: {Math.round(editForm.transparency * 100)}%
-                </Label>
-                <Slider
-                  id="transparency-slider"
-                  value={[editForm.transparency]}
-                  onValueChange={(value) => setEditForm({...editForm, transparency: value[0]})}
-                  max={1}
-                  min={0.1}
-                  step={0.1}
-                  className="w-full mt-2"
-                />
-              </div>
-
-              {/* Display block metrics - only acres */}
-              {editingBlock && (
-                <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                  <h4 className="font-medium text-green-900 mb-2">Dados do Bloco</h4>
-                  <div className="grid grid-cols-1 gap-2 text-sm">
-                    <div>
-                      <span className="text-green-700">ID:</span>
-                      <p className="font-medium text-xs">{selectedFeature.get('blockId')}</p>
-                    </div>
-                    <div>
-                      <span className="text-green-700">Área:</span>
-                      <p className="font-medium">{editingBlock.area_acres?.toFixed(4) || 0} acres</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              <div className="flex gap-2 pt-2">
-                <Button 
-                  onClick={handleSaveEdit}
-                  className="flex-1 bg-green-600 hover:bg-green-700"
-                  size="sm"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Salvar
-                </Button>
-                <Button 
-                  onClick={handleDeleteEdit}
-                  variant="destructive"
-                  size="sm"
-                  className="flex-1"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Deletar
-                </Button>
-                <Button 
-                  onClick={handleCancelEdit}
-                  variant="outline"
-                  size="sm"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-
-              <div className="text-xs text-gray-500 pt-2">
-                <strong>Dica:</strong> Clique em qualquer bloco no mapa para editar rapidamente seu nome e cor.
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      {editPanel}
 
       {/* Quick Edit Panel - Measurement */}
       {editingMeasurement && (

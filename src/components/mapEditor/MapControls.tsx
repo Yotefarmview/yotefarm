@@ -200,14 +200,14 @@ const MapControls: React.FC<MapControlsProps> = ({
 
         <div className="space-y-2">
           <label className="text-xs text-gray-600">
-            Transparência: {Math.round(transparency * 100)}%
+            Transparência: {Math.round((1 - transparency) * 100)}%
           </label>
           <Slider
             value={[transparency]}
             onValueChange={(value) => onTransparencyChange(value[0])}
             max={1}
-            min={0.1}
-            step={0.1}
+            min={0}
+            step={0.01}
             className="w-full"
           />
         </div>
