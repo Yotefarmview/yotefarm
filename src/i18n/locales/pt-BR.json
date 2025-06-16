@@ -1,3 +1,4 @@
+
 {
   "app": {
     "title": "YOTE Farmview",
@@ -94,8 +95,7 @@
     "applicationDate": "Data de Aplicação",
     "nextApplication": "Próxima Aplicação",
     "save": "Salvar",
-    "history": "Histórico de Aplicações",
-    "appliedArea": "Área Aplicada (acres)"
+    "history": "Histórico de Aplicações"
   },
   "common": {
     "loading": "Carregando...",
