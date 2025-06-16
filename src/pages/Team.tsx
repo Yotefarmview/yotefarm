@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -16,13 +17,25 @@ const teamMemberSchema = z.object({
   fullName: z.string().min(2, 'Full name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   phone: z.string().min(10, 'Phone number must be at least 10 characters'),
-  password: z.string().min(6, 'Password must be at least 6 characters')
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  role: z.string().min(1, 'Please select a role')
 });
 
 type TeamMember = z.infer<typeof teamMemberSchema> & {
   id: string;
   createdAt: Date;
 };
+
+const roleOptions = [
+  { value: 'pilot', label: 'Pilot' },
+  { value: 'agronomist', label: 'Agronomist' },
+  { value: 'supervisor', label: 'Supervisor' },
+  { value: 'technician', label: 'Technician' },
+  { value: 'operator', label: 'Operator' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'consultant', label: 'Consultant' },
+  { value: 'other', label: 'Other' }
+];
 
 const Team: React.FC = () => {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -35,7 +48,8 @@ const Team: React.FC = () => {
       fullName: '',
       email: '',
       phone: '',
-      password: ''
+      password: '',
+      role: ''
     }
   });
 
@@ -72,7 +86,8 @@ const Team: React.FC = () => {
       fullName: member.fullName,
       email: member.email,
       phone: member.phone,
-      password: member.password
+      password: member.password,
+      role: member.role
     });
     setIsDialogOpen(true);
   };
@@ -86,6 +101,11 @@ const Team: React.FC = () => {
     setIsDialogOpen(false);
     setEditingMember(null);
     form.reset();
+  };
+
+  const getRoleLabel = (roleValue: string) => {
+    const role = roleOptions.find(option => option.value === roleValue);
+    return role ? role.label : roleValue;
   };
 
   return (
@@ -160,6 +180,31 @@ const Team: React.FC = () => {
 
                 <FormField
                   control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {roleOptions.map((role) => (
+                            <SelectItem key={role.value} value={role.value}>
+                              {role.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="password"
                   render={({ field }) => (
                     <FormItem>
@@ -211,6 +256,10 @@ const Team: React.FC = () => {
                 <CardTitle className="text-lg">{member.fullName}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
+                <div>
+                  <Label className="text-sm text-gray-500">Role</Label>
+                  <p className="text-sm font-medium">{getRoleLabel(member.role)}</p>
+                </div>
                 <div>
                   <Label className="text-sm text-gray-500">Email</Label>
                   <p className="text-sm font-medium">{member.email}</p>
