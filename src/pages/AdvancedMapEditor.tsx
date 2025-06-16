@@ -774,7 +774,7 @@ const AdvancedMapEditor: React.FC = () => {
       // .shp - arquivo principal (geometria binária)
       const shpContent = new Uint8Array([
         0x00, 0x00, 0x27, 0x0A, // File code
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
         0x00, 0x00, 0x00, 0x32, // File length
         0x00, 0x00, 0x03, 0xE8, // Version
         0x00, 0x00, 0x00, 0x05  // Shape type (Polygon)
@@ -1083,15 +1083,15 @@ CAMPOS DOS DADOS:
         >
           <Card className="h-[calc(100vh-120px)]">
             <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Navigation className="w-5 h-5" />
-                  Mapa Interativo
-                </CardTitle>
-                
-                {/* Map Controls */}
-                <div className="flex items-center gap-2">
-                  <div className="min-w-[200px]">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Navigation className="w-5 h-5" />
+                    Mapa Interativo
+                  </CardTitle>
+                  
+                  {/* Farm Selector - Responsive */}
+                  <div className="min-w-[200px] max-w-[300px]">
                     <Select value={selectedFarmId} onValueChange={handleFarmChange}>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione uma fazenda" />
@@ -1105,56 +1105,71 @@ CAMPOS DOS DADOS:
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                
+                {/* Map Controls - Responsive Grid */}
+                <div className="flex flex-wrap items-center gap-2 justify-between">
+                  {/* View Controls */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant={showSatellite ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowSatellite(!showSatellite)}
+                      className="text-xs px-2 py-1 h-8 min-w-[70px]"
+                    >
+                      <Layers className="w-3 h-3 mr-1" />
+                      {showSatellite ? 'Satélite' : 'Padrão'}
+                    </Button>
+                    
+                    <Button
+                      variant={printMode ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setPrintMode(!printMode)}
+                      className="text-xs px-2 py-1 h-8 min-w-[70px] whitespace-nowrap"
+                    >
+                      Modo Impressão
+                    </Button>
+                  </div>
                   
-                  <Button
-                    variant={showSatellite ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowSatellite(!showSatellite)}
-                  >
-                    <Layers className="w-4 h-4 mr-2" />
-                    {showSatellite ? 'Satélite' : 'Padrão'}
-                  </Button>
-                  
-                  <Button
-                    variant={printMode ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setPrintMode(!printMode)}
-                  >
-                    Modo Impressão
-                  </Button>
-                  
-                  <Button
-                    variant={drawingMode === 'polygon' ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setDrawingMode(drawingMode === 'polygon' ? null : 'polygon')}
-                  >
-                    Desenhar
-                  </Button>
-                  
-                  <Button
-                    variant={drawingMode === 'measure' ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setDrawingMode(drawingMode === 'measure' ? null : 'measure')}
-                  >
-                    <Ruler className="w-4 h-4 mr-2" />
-                    Medir
-                  </Button>
-                  
-                  <Button
-                    variant={drawingMode === 'edit' ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setDrawingMode(drawingMode === 'edit' ? null : 'edit')}
-                  >
-                    Editar
-                  </Button>
-                  
-                  <Button
-                    variant={drawingMode === 'delete' ? "destructive" : "outline"}
-                    size="sm"
-                    onClick={() => setDrawingMode(drawingMode === 'delete' ? null : 'delete')}
-                  >
-                    Deletar
-                  </Button>
+                  {/* Drawing Tools */}
+                  <div className="flex flex-wrap items-center gap-1">
+                    <Button
+                      variant={drawingMode === 'polygon' ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setDrawingMode(drawingMode === 'polygon' ? null : 'polygon')}
+                      className="text-xs px-2 py-1 h-8 min-w-[60px]"
+                    >
+                      Desenhar
+                    </Button>
+                    
+                    <Button
+                      variant={drawingMode === 'measure' ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setDrawingMode(drawingMode === 'measure' ? null : 'measure')}
+                      className="text-xs px-2 py-1 h-8 min-w-[50px]"
+                    >
+                      <Ruler className="w-3 h-3 mr-1" />
+                      Medir
+                    </Button>
+                    
+                    <Button
+                      variant={drawingMode === 'edit' ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setDrawingMode(drawingMode === 'edit' ? null : 'edit')}
+                      className="text-xs px-2 py-1 h-8 min-w-[50px]"
+                    >
+                      Editar
+                    </Button>
+                    
+                    <Button
+                      variant={drawingMode === 'delete' ? "destructive" : "outline"}
+                      size="sm"
+                      onClick={() => setDrawingMode(drawingMode === 'delete' ? null : 'delete')}
+                      className="text-xs px-2 py-1 h-8 min-w-[55px]"
+                    >
+                      Deletar
+                    </Button>
+                  </div>
                 </div>
               </div>
               
