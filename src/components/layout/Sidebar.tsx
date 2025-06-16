@@ -1,4 +1,5 @@
 
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -55,8 +56,8 @@ const Sidebar: React.FC<SidebarProps> = ({
       {/* Header */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 flex items-center justify-center">
-            <img alt="YOTE Farmview Logo" className="w-12 h-12 object-contain" src="/lovable-uploads/c525fde2-6439-495b-b9e2-3ed05cb0c2a3.png" />
+          <div className="w-8 h-8 flex items-center justify-center">
+            <img alt="YOTE Farmview Logo" className="w-8 h-8 object-contain" src="/lovable-uploads/c525fde2-6439-495b-b9e2-3ed05cb0c2a3.png" />
           </div>
           {!isCollapsed && <motion.div initial={{
           opacity: 0
@@ -125,3 +126,4 @@ const Sidebar: React.FC<SidebarProps> = ({
     </motion.div>;
 };
 export default Sidebar;
+
