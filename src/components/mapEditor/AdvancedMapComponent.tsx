@@ -232,15 +232,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     });
     
     // Clear modify interaction selection
-    if (currentModify) {
-      const modifyFeatures = currentModify.getFeatures();
-      modifyFeatures.clear();
-    }
-    
-    // Clear select interaction selection
-    if (currentSelect) {
-      const selectFeatures = currentSelect.getFeatures();
-      selectFeatures.clear();
+    if (currentModify && currentSelect) {
+      const selectedFeatures = currentSelect.getFeatures();
+      selectedFeatures.clear();
     }
     
     setSelectedFeature(null);
@@ -282,13 +276,6 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         true
       );
       
-      // Add feature to modify interaction if it exists
-      if (currentModify) {
-        const modifyFeatures = currentModify.getFeatures();
-        modifyFeatures.clear();
-        modifyFeatures.push(feature);
-      }
-      
       // Add feature to select interaction if it exists
       if (currentSelect) {
         const selectFeatures = currentSelect.getFeatures();
@@ -299,7 +286,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       onBlockSelect(blockData);
       console.log('Block selected for editing:', blockId, blockData.nome);
     }
-  }, [clearAllSelections, updateFeatureStyle, onBlockSelect, drawingMode, currentModify, currentSelect]);
+  }, [clearAllSelections, updateFeatureStyle, onBlockSelect, drawingMode, currentSelect]);
 
   // Handle measurement selection
   const handleMeasurementClick = useCallback((feature: Feature) => {
@@ -599,7 +586,6 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
   }, []);
 
-  // Carregar blocos existentes
   useEffect(() => {
     if (!vectorSource.current || !mapReady) return;
 
@@ -644,7 +630,6 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     });
   }, [blocks, mapReady, transparency]);
 
-  // Atualizar visibilidade das camadas
   useEffect(() => {
     if (!mapInstance.current) return;
 
@@ -674,7 +659,6 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
   }, [showSatellite, showBackground, printMode, showNDVI]);
 
-  // Gerenciar interações baseadas no modo de desenho - improved version
   useEffect(() => {
     if (!mapInstance.current || !vectorSource.current) return;
 
@@ -746,7 +730,6 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       setCurrentDraw(draw);
 
     } else if (drawingMode === 'measure') {
-      // Modo medição - linhas retas
       const draw = new Draw({
         source: measurementSource.current!,
         type: 'LineString',
@@ -927,7 +910,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
             // Update in parent component
             onBlockUpdate(blockId, {
-              coordenadas: coordinates,
+              coordinates: coordinates,
               ...metrics
             });
             
@@ -942,7 +925,6 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       setCurrentModify(modify);
 
     } else if (drawingMode === 'delete') {
-      // Modo deletar
       const select = new Select({
         style: (feature) => {
           if (!(feature instanceof Feature)) return undefined;
@@ -979,7 +961,6 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
   }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, updateFeatureStyle, createMeasurementStyle, measurements.length, createMeasureTooltip, formatLength, clearAllSelections]);
 
-  // Handle map click events - improved version
   useEffect(() => {
     if (!mapInstance.current) return;
 
@@ -1012,7 +993,6 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     };
   }, [drawingMode, handleBlockClick, handleMeasurementClick, clearAllSelections]);
 
-  // Centralizar mapa em coordenadas específicas
   useEffect(() => {
     if (!mapInstance.current || !centerCoordinates) return;
 
@@ -1034,6 +1014,27 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       });
     }
   }, [centerCoordinates, boundingBox]);
+
+  useEffect(() => {
+    if (!vectorSource.current || !mapReady) return;
+
+    console.log('Updating transparency for all blocks:', transparency);
+    
+    vectorSource.current.getFeatures().forEach(feature => {
+      const blockData = feature.get('blockData');
+      // Only update blocks that don't have their own custom transparency
+      if (blockData && blockData.transparencia === undefined) {
+        updateFeatureStyle(
+          feature,
+          blockData.nome || feature.get('name') || '',
+          blockData.cor || feature.get('color') || selectedColor,
+          transparency, // Use global transparency
+          blockData.area_acres,
+          feature.get('isSelected') || false
+        );
+      }
+    });
+  }, [transparency, selectedColor, mapReady, updateFeatureStyle]);
 
   // Quick Edit Panel - Block
   const editPanel = editingBlock && selectedFeature && (
@@ -1150,28 +1151,6 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       </Card>
     </div>
   );
-
-  // Update all existing blocks when global transparency changes
-  useEffect(() => {
-    if (!vectorSource.current || !mapReady) return;
-
-    console.log('Updating transparency for all blocks:', transparency);
-    
-    vectorSource.current.getFeatures().forEach(feature => {
-      const blockData = feature.get('blockData');
-      // Only update blocks that don't have their own custom transparency
-      if (blockData && blockData.transparencia === undefined) {
-        updateFeatureStyle(
-          feature,
-          blockData.nome || feature.get('name') || '',
-          blockData.cor || feature.get('color') || selectedColor,
-          transparency, // Use global transparency
-          blockData.area_acres,
-          feature.get('isSelected') || false
-        );
-      }
-    });
-  }, [transparency, selectedColor, mapReady, updateFeatureStyle]);
 
   return (
     <div className="relative w-full h-full">
