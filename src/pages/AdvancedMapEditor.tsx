@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Layout } from '@/components/layout/Layout';
+import Layout from '@/components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,9 +33,9 @@ import {
 import { toast } from 'sonner';
 import { useFarms } from '@/hooks/useFarms';
 import { useBlocks } from '@/hooks/useBlocks';
-import { AdvancedMapComponent } from '@/components/mapEditor/AdvancedMapComponent';
-import { LocationSearch } from '@/components/mapEditor/LocationSearch';
-import { AdvancedBlockForm } from '@/components/mapEditor/AdvancedBlockForm';
+import AdvancedMapComponent from '@/components/mapEditor/AdvancedMapComponent';
+import LocationSearch from '@/components/mapEditor/LocationSearch';
+import AdvancedBlockForm from '@/components/mapEditor/AdvancedBlockForm';
 import { saveAs } from 'file-saver';
 import * as shpwrite from 'shp-write';
 import * as shp from 'shpjs';
@@ -68,9 +68,9 @@ const AdvancedMapEditor = () => {
   const [selectedBlock, setSelectedBlock] = useState<any | null>(null);
   const [isBlockFormOpen, setIsBlockFormOpen] = useState(false);
 
-  const { data: farms, isLoading: isLoadingFarms, isError: isErrorFarms } = useFarms();
+  const { farms, isLoading: isLoadingFarms, isError: isErrorFarms } = useFarms();
   const { 
-    data: blocks, 
+    blocks, 
     isLoading: isLoadingBlocks, 
     isError: isErrorBlocks,
     createBlock,
@@ -112,7 +112,7 @@ const AdvancedMapEditor = () => {
         ...blockData,
         fazenda_id: selectedFarmId,
       };
-      await createBlock.mutateAsync(newBlock);
+      await createBlock(newBlock);
       toast.success("Bloco criado com sucesso!");
     } catch (error) {
       console.error("Erro ao criar bloco:", error);
@@ -122,7 +122,7 @@ const AdvancedMapEditor = () => {
 
   const handleBlockUpdate = async (blockId: string, updates: Partial<BlockData>) => {
     try {
-      await updateBlock.mutateAsync({ id: blockId, ...updates });
+      await updateBlock(blockId, updates);
       toast.success("Bloco atualizado com sucesso!");
     } catch (error) {
       console.error("Erro ao atualizar bloco:", error);
@@ -132,7 +132,7 @@ const AdvancedMapEditor = () => {
 
   const handleBlockDelete = async (blockId: string) => {
     try {
-      await deleteBlock.mutateAsync(blockId);
+      await deleteBlock(blockId);
       toast.success("Bloco deletado com sucesso!");
     } catch (error) {
       console.error("Erro ao deletar bloco:", error);
@@ -293,7 +293,7 @@ const AdvancedMapEditor = () => {
 
         // Salvar blocos no banco
         for (const block of importedBlocks) {
-          await createBlock.mutateAsync(block);
+          await createBlock(block);
         }
 
         // Centralizar mapa nos blocos importados
@@ -344,7 +344,7 @@ const AdvancedMapEditor = () => {
 
       // Salvar blocos no banco
       for (const block of importedBlocks) {
-        await createBlock.mutateAsync(block);
+        await createBlock(block);
       }
 
       // Centralizar mapa nos blocos importados
@@ -406,7 +406,7 @@ const AdvancedMapEditor = () => {
                     <SelectContent>
                       {farms?.map((farm) => (
                         <SelectItem key={farm.id} value={farm.id}>
-                          {farm.name}
+                          {farm.nome}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -418,15 +418,15 @@ const AdvancedMapEditor = () => {
                     <div className="grid grid-cols-1 gap-2 text-sm">
                       <div>
                         <span className="text-green-700">Nome:</span>
-                        <p className="font-medium">{selectedFarm.name}</p>
+                        <p className="font-medium">{selectedFarm.nome}</p>
                       </div>
                       <div>
                         <span className="text-green-700">Localização:</span>
-                        <p className="font-medium">{selectedFarm.location}</p>
+                        <p className="font-medium">{selectedFarm.localizacao}</p>
                       </div>
                       <div>
                         <span className="text-green-700">Área Total:</span>
-                        <p className="font-medium">{selectedFarm.total_area} hectares</p>
+                        <p className="font-medium">{selectedFarm.area_total} hectares</p>
                       </div>
                     </div>
                   </div>
