@@ -53,7 +53,11 @@ const Sidebar: React.FC<SidebarProps> = ({
   }} className="bg-white border-r border-gray-200 h-screen flex flex-col shadow-lg">
       {/* Header */}
       <div className="border-b border-gray-200">
-        <img alt="YOTE Farmview Logo" className="w-full h-auto object-contain" src="/lovable-uploads/55a444f0-842d-4962-a4bd-99da8d0a680a.png" />
+        <img 
+          alt="YOTE Farmview Logo" 
+          className="w-full h-auto object-contain" 
+          src="/lovable-uploads/22da34ca-0e97-49cc-b675-f0a59139489a.png" 
+        />
       </div>
 
       {/* Navigation */}
