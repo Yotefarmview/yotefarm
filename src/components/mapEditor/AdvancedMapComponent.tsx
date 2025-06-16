@@ -116,7 +116,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const createBlockStyle = useCallback((color: string, transparency: number, name?: string, area_acres?: number, isSelected?: boolean) => {
     const displayText = name ? `${name}\n${area_acres?.toFixed(4) || 0} acres` : '';
     
-    // Convert transparency to alpha (0 = fully transparent, 1 = fully opaque)
+    // Convert transparency to alpha correctly - transparency 0 = fully opaque, transparency 1 = fully transparent
     const alpha = Math.round((1 - transparency) * 255).toString(16).padStart(2, '0');
     
     return new Style({
@@ -224,7 +224,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         feature, 
         blockData?.nome || feature.get('name') || '',
         blockData?.cor || feature.get('color') || '#10B981',
-        blockData?.transparencia !== undefined ? blockData.transparencia : feature.get('transparency') || 0.4,
+        blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
         blockData?.area_acres,
         false
       );
@@ -235,7 +235,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     setEditForm({ name: '', color: '#10B981', transparency: 0.4 });
     setEditingMeasurement(null);
     setMeasurementForm({ name: '', isDrain: false });
-  }, [updateFeatureStyle]);
+  }, [updateFeatureStyle, transparency]);
 
   // Handle block selection for editing
   const handleBlockClick = useCallback((feature: Feature) => {
@@ -601,11 +601,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           feature.set('blockId', block.id);
           feature.set('name', block.nome);
           feature.set('color', block.cor);
-          feature.set('transparency', block.transparencia || 0.4);
+          feature.set('transparency', block.transparencia !== undefined ? block.transparencia : transparency);
           feature.set('blockData', block);
           feature.set('isSelected', false);
           
-          console.log('Adding block to map:', block.id, block.nome);
+          console.log('Adding block to map:', block.id, block.nome, 'transparency:', block.transparencia !== undefined ? block.transparencia : transparency);
           
           vectorSource.current!.addFeature(feature);
         } catch (error) {
@@ -613,7 +613,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }
       }
     });
-  }, [blocks, mapReady]);
+  }, [blocks, mapReady, transparency]);
 
   // Atualizar visibilidade das camadas
   useEffect(() => {
@@ -1049,6 +1049,28 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       </Card>
     </div>
   );
+
+  // Update all existing blocks when global transparency changes
+  useEffect(() => {
+    if (!vectorSource.current || !mapReady) return;
+
+    console.log('Updating transparency for all blocks:', transparency);
+    
+    vectorSource.current.getFeatures().forEach(feature => {
+      const blockData = feature.get('blockData');
+      // Only update blocks that don't have their own custom transparency
+      if (blockData && blockData.transparencia === undefined) {
+        updateFeatureStyle(
+          feature,
+          blockData.nome || feature.get('name') || '',
+          blockData.cor || feature.get('color') || selectedColor,
+          transparency, // Use global transparency
+          blockData.area_acres,
+          feature.get('isSelected') || false
+        );
+      }
+    });
+  }, [transparency, selectedColor, mapReady, updateFeatureStyle]);
 
   return (
     <div className="relative w-full h-full">
