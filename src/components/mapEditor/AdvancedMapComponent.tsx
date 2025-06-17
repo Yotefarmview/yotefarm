@@ -314,12 +314,24 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const handleBlockClick = useCallback((feature: Feature) => {
     if (drawingMode === 'multiselect') {
       handleMultiSelect(feature);
-    } else {
-      // Single select mode (existing functionality)
+    } else if (drawingMode === 'edit') {
+      // Clear other selections first
       clearAllSelections();
+      // Select this block for editing
       onBlockSelect(feature.get('blockData'));
+      // Update visual style to show it's selected for editing
+      const blockData = feature.get('blockData');
+      updateFeatureStyle(
+        feature,
+        blockData?.nome || '',
+        blockData?.cor || '#10B981',
+        blockData?.transparencia || 0.4,
+        blockData?.area_acres,
+        true, // isSelected = true for edit mode
+        false
+      );
     }
-  }, [drawingMode, handleMultiSelect, clearAllSelections, onBlockSelect]);
+  }, [drawingMode, handleMultiSelect, clearAllSelections, onBlockSelect, updateFeatureStyle]);
 
   // Create measurement tooltip
   const createMeasureTooltip = useCallback(() => {
@@ -704,7 +716,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       setCurrentDraw(draw);
 
     } else if (drawingMode === 'edit') {
-      // Modo edição
+      // Modo edição - corrigido
       const select = new Select({
         style: (feature) => {
           if (!(feature instanceof Feature)) return undefined;
@@ -714,7 +726,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
             transparency,
             blockData?.nome || feature.get('name'),
             blockData?.area_acres,
-            true
+            true // Always show as selected in edit mode
           );
         }
       });
@@ -723,22 +735,15 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         features: select.getFeatures(),
       });
 
+      // Clear selections when entering edit mode
+      clearAllSelections();
+
       select.on('select', (event) => {
         const selectedFeatures = event.selected;
         if (selectedFeatures.length > 0) {
           const feature = selectedFeatures[0];
           if (feature instanceof Feature && feature.get('blockData')) {
-            clearAllSelections();
             onBlockSelect(feature.get('blockData'));
-            updateFeatureStyle(
-              feature,
-              feature.get('blockData').nome || '',
-              feature.get('blockData').cor || '#10B981',
-              feature.get('blockData').transparencia || 0.4,
-              feature.get('blockData').area_acres,
-              true,
-              false
-            );
           }
         }
       });
@@ -771,8 +776,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
               blockData?.cor || feature.get('color') || selectedColor,
               blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
               blockData?.area_acres,
-              feature.get('isSelected') || false,
-              feature.get('isMultiSelected') || false
+              true, // Keep selected in edit mode
+              false
             );
 
             onBlockUpdate(blockId, {
@@ -825,6 +830,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
       map.addInteraction(select);
       setCurrentSelect(select);
+    } else if (drawingMode === 'multiselect') {
+      // Modo seleção múltipla - sem interações especiais, usar apenas cliques
+      clearAllSelections();
     }
   }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, updateFeatureStyle, createMeasurementStyle, measurements.length, createMeasureTooltip, formatLength, clearAllSelections, onBlockSelect]);
 
@@ -851,7 +859,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
   }, [centerCoordinates, boundingBox]);
 
-  // Multi-selection summary panel
+  // Multi-selection summary panel - only show when in multiselect mode
   const multiSelectPanel = selectedBlocks.size > 0 && drawingMode === 'multiselect' && (
     <div className="w-full mt-4">
       <Card className="bg-white shadow-lg border">

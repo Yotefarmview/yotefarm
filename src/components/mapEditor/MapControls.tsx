@@ -155,7 +155,7 @@ const MapControls: React.FC<MapControlsProps> = ({
             className="flex items-center gap-2"
           >
             <CheckSquare className="w-4 h-4" />
-            Múltiplos
+            Selecionar
           </Button>
         </div>
 
