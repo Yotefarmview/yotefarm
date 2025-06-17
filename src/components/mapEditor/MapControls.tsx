@@ -12,8 +12,7 @@ import {
   Palette,
   Square,
   Edit3,
-  Trash2,
-  CheckSquare
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -32,8 +31,8 @@ interface MapControlsProps {
   onColorChange: (color: string) => void;
   transparency: number;
   onTransparencyChange: (value: number) => void;
-  drawingMode: 'polygon' | 'edit' | 'delete' | 'multiselect' | null;
-  onDrawingModeChange: (mode: 'polygon' | 'edit' | 'delete' | 'multiselect' | null) => void;
+  drawingMode: 'polygon' | 'edit' | 'delete' | null;
+  onDrawingModeChange: (mode: 'polygon' | 'edit' | 'delete' | null) => void;
   onCenterMap: () => void;
 }
 
@@ -137,50 +136,36 @@ const MapControls: React.FC<MapControlsProps> = ({
       <div className="space-y-3">
         <h4 className="text-sm font-medium text-gray-700">Ferramentas</h4>
         
-        <div className="space-y-2">
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant={drawingMode === 'polygon' ? "default" : "outline"}
-              size="sm"
-              onClick={() => onDrawingModeChange(drawingMode === 'polygon' ? null : 'polygon')}
-              className="flex items-center gap-2"
-            >
-              <Square className="w-4 h-4" />
-              Desenhar
-            </Button>
+        <div className="grid grid-cols-3 gap-2">
+          <Button
+            variant={drawingMode === 'polygon' ? "default" : "outline"}
+            size="sm"
+            onClick={() => onDrawingModeChange(drawingMode === 'polygon' ? null : 'polygon')}
+            className="flex items-center gap-2"
+          >
+            <Square className="w-4 h-4" />
+            Desenhar
+          </Button>
 
-            <Button
-              variant={drawingMode === 'multiselect' ? "default" : "outline"}
-              size="sm"
-              onClick={() => onDrawingModeChange(drawingMode === 'multiselect' ? null : 'multiselect')}
-              className="flex items-center gap-2"
-            >
-              <CheckSquare className="w-4 h-4" />
-              Selecionar
-            </Button>
-          </div>
+          <Button
+            variant={drawingMode === 'edit' ? "default" : "outline"}
+            size="sm"
+            onClick={() => onDrawingModeChange(drawingMode === 'edit' ? null : 'edit')}
+            className="flex items-center gap-2"
+          >
+            <Edit3 className="w-4 h-4" />
+            Editar
+          </Button>
 
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant={drawingMode === 'edit' ? "default" : "outline"}
-              size="sm"
-              onClick={() => onDrawingModeChange(drawingMode === 'edit' ? null : 'edit')}
-              className="flex items-center gap-2"
-            >
-              <Edit3 className="w-4 h-4" />
-              Editar
-            </Button>
-
-            <Button
-              variant={drawingMode === 'delete' ? "destructive" : "outline"}
-              size="sm"
-              onClick={() => onDrawingModeChange(drawingMode === 'delete' ? null : 'delete')}
-              className="flex items-center gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Deletar
-            </Button>
-          </div>
+          <Button
+            variant={drawingMode === 'delete' ? "destructive" : "outline"}
+            size="sm"
+            onClick={() => onDrawingModeChange(drawingMode === 'delete' ? null : 'delete')}
+            className="flex items-center gap-2"
+          >
+            <Trash2 className="w-4 h-4" />
+            Deletar
+          </Button>
         </div>
       </div>
 

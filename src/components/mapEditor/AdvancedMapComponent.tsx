@@ -16,8 +16,14 @@ import * as turf from '@turf/turf';
 import GeoJSON from 'ol/format/GeoJSON';
 import { unByKey } from 'ol/Observable';
 import Overlay from 'ol/Overlay';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select as UISelect, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckSquare } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
+import { Save, X, Edit2, Trash2, Ruler } from 'lucide-react';
 import 'ol/ol.css';
 
 interface BlockData {
@@ -49,16 +55,13 @@ interface AdvancedMapComponentProps {
   showBackground: boolean;
   printMode: boolean;
   showNDVI: boolean;
-  drawingMode: 'polygon' | 'edit' | 'delete' | 'measure' | 'multiselect' | null;
+  drawingMode: 'polygon' | 'edit' | 'delete' | 'measure' | null;
   onPolygonDrawn: (blockData: BlockData) => void;
   onBlockUpdate: (blockId: string, updates: Partial<BlockData>) => void;
   onBlockDelete: (blockId: string) => void;
   onBlockSelect: (block: any) => void;
   centerCoordinates?: [number, number];
   boundingBox?: [number, number, number, number];
-  selectedBlocks?: Set<string>;
-  totalSelectedArea?: number;
-  onMultiSelectChange?: (selectedBlocks: Set<string>, totalArea: number) => void;
 }
 
 const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
@@ -75,10 +78,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   onBlockDelete,
   onBlockSelect,
   centerCoordinates,
-  boundingBox,
-  selectedBlocks: externalSelectedBlocks = new Set(),
-  totalSelectedArea: externalTotalArea = 0,
-  onMultiSelectChange
+  boundingBox
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Map | null>(null);
@@ -89,17 +89,15 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const [currentDraw, setCurrentDraw] = useState<Draw | null>(null);
   const [currentModify, setCurrentModify] = useState<Modify | null>(null);
   const [currentSelect, setCurrentSelect] = useState<Select | null>(null);
+  const [editingBlock, setEditingBlock] = useState<any>(null);
+  const [editForm, setEditForm] = useState({ name: '', color: '#10B981', transparency: 0.4 });
   const [mapReady, setMapReady] = useState(false);
+  const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
   
   // Measurement states
+  const [editingMeasurement, setEditingMeasurement] = useState<MeasurementData | null>(null);
+  const [measurementForm, setMeasurementForm] = useState({ name: '', isDrain: false });
   const [measurements, setMeasurements] = useState<MeasurementData[]>([]);
-
-  // Multi-select states (use external or internal)
-  const [internalSelectedBlocks, setInternalSelectedBlocks] = useState<Set<string>>(new Set());
-  const [internalTotalArea, setInternalTotalArea] = useState(0);
-  
-  const selectedBlocks = externalSelectedBlocks.size > 0 ? externalSelectedBlocks : internalSelectedBlocks;
-  const totalSelectedArea = externalTotalArea > 0 ? externalTotalArea : internalTotalArea;
 
   // Color options for blocks
   const colorOptions = [
@@ -115,31 +113,19 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   ];
 
   // Criar estilo para blocos com nome como legenda e área (apenas acres)
-  const createBlockStyle = useCallback((color: string, transparency: number, name?: string, area_acres?: number, isSelected?: boolean, isMultiSelected?: boolean) => {
+  const createBlockStyle = useCallback((color: string, transparency: number, name?: string, area_acres?: number, isSelected?: boolean) => {
     const displayText = name ? `${name}\n${area_acres?.toFixed(4) || 0} acres` : '';
     
     // Convert transparency to alpha correctly - transparency 0 = fully opaque, transparency 1 = fully transparent
     const alpha = Math.round((1 - transparency) * 255).toString(16).padStart(2, '0');
-    
-    // Different colors for different selection states
-    let strokeColor = color;
-    let strokeWidth = 2;
-    
-    if (isMultiSelected) {
-      strokeColor = '#00FF00'; // Green for multi-selected
-      strokeWidth = 4;
-    } else if (isSelected) {
-      strokeColor = '#FFD700'; // Gold for single selected
-      strokeWidth = 4;
-    }
     
     return new Style({
       fill: new Fill({
         color: color + alpha,
       }),
       stroke: new Stroke({
-        color: strokeColor,
-        width: strokeWidth,
+        color: isSelected ? '#FFD700' : color,
+        width: isSelected ? 4 : 2,
       }),
       text: displayText ? new Text({
         text: displayText,
@@ -215,8 +201,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   }, []);
 
   // Update specific feature style and properties
-  const updateFeatureStyle = useCallback((feature: Feature, name: string, color: string, transparency: number, area_acres?: number, isSelected?: boolean, isMultiSelected?: boolean) => {
-    const style = createBlockStyle(color, transparency, name, area_acres, isSelected, isMultiSelected);
+  const updateFeatureStyle = useCallback((feature: Feature, name: string, color: string, transparency: number, area_acres?: number, isSelected?: boolean) => {
+    const style = createBlockStyle(color, transparency, name, area_acres, isSelected);
     feature.setStyle(style);
     
     // Update feature properties
@@ -224,9 +210,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     feature.set('color', color);
     feature.set('transparency', transparency);
     feature.set('isSelected', isSelected);
-    feature.set('isMultiSelected', isMultiSelected);
     
-    console.log(`Updated feature style - ID: ${feature.get('blockId')}, Name: ${name}, Multi-selected: ${isMultiSelected}`);
+    console.log(`Updated feature style - ID: ${feature.get('blockId')}, Name: ${name}, Color: ${color}, Transparency: ${transparency}, Selected: ${isSelected}`);
   }, [createBlockStyle]);
 
   // Clear all selections
@@ -241,84 +226,193 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         blockData?.cor || feature.get('color') || '#10B981',
         blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
         blockData?.area_acres,
-        false,
         false
       );
     });
-
-    const newSelectedBlocks = new Set<string>();
-    const newTotalArea = 0;
     
-    if (onMultiSelectChange) {
-      onMultiSelectChange(newSelectedBlocks, newTotalArea);
-    } else {
-      setInternalSelectedBlocks(newSelectedBlocks);
-      setInternalTotalArea(newTotalArea);
-    }
-  }, [updateFeatureStyle, transparency, onMultiSelectChange]);
-
-  // Handle multi-selection
-  const handleMultiSelect = useCallback((feature: Feature) => {
-    const blockId = feature.get('blockId');
-    const blockData = feature.get('blockData');
-    
-    if (!blockId || !blockData) return;
-
-    const newSelectedBlocks = new Set(selectedBlocks);
-    
-    if (newSelectedBlocks.has(blockId)) {
-      // Remove from selection
-      newSelectedBlocks.delete(blockId);
-      updateFeatureStyle(
-        feature,
-        blockData.nome || '',
-        blockData.cor || '#10B981',
-        blockData.transparencia || 0.4,
-        blockData.area_acres,
-        false,
-        false
-      );
-    } else {
-      // Add to selection
-      newSelectedBlocks.add(blockId);
-      updateFeatureStyle(
-        feature,
-        blockData.nome || '',
-        blockData.cor || '#10B981',
-        blockData.transparencia || 0.4,
-        blockData.area_acres,
-        false,
-        true
-      );
-    }
-    
-    // Calculate total area
-    let totalArea = 0;
-    vectorSource.current?.getFeatures().forEach(f => {
-      const fBlockId = f.get('blockId');
-      const fBlockData = f.get('blockData');
-      if (newSelectedBlocks.has(fBlockId) && fBlockData?.area_acres) {
-        totalArea += fBlockData.area_acres;
-      }
-    });
-
-    if (onMultiSelectChange) {
-      onMultiSelectChange(newSelectedBlocks, totalArea);
-    } else {
-      setInternalSelectedBlocks(newSelectedBlocks);
-      setInternalTotalArea(totalArea);
-    }
-  }, [selectedBlocks, updateFeatureStyle, onMultiSelectChange]);
+    setSelectedFeature(null);
+    setEditingBlock(null);
+    setEditForm({ name: '', color: '#10B981', transparency: 0.4 });
+    setEditingMeasurement(null);
+    setMeasurementForm({ name: '', isDrain: false });
+  }, [updateFeatureStyle, transparency]);
 
   // Handle block selection for editing
   const handleBlockClick = useCallback((feature: Feature) => {
-    if (drawingMode === 'multiselect') {
-      handleMultiSelect(feature);
-    } else if (drawingMode === 'edit') {
-      // Don't interfere with OpenLayers Select interaction in edit mode
+    console.log('Block clicked:', feature.get('blockId'));
+    
+    // Clear previous selections
+    clearAllSelections();
+    
+    const blockData = feature.get('blockData');
+    const blockId = feature.get('blockId');
+    
+    if (blockData && blockId) {
+      // Set this feature as selected
+      setSelectedFeature(feature);
+      setEditingBlock(blockData);
+      setEditForm({
+        name: blockData.nome || '',
+        color: blockData.cor || '#10B981',
+        transparency: blockData.transparencia || 0.4
+      });
+      
+      // Update style to show selection
+      updateFeatureStyle(
+        feature,
+        blockData.nome || '',
+        blockData.cor || '#10B981',
+        blockData.transparencia || 0.4,
+        blockData.area_acres,
+        true
+      );
+      
+      onBlockSelect(blockData);
+      console.log('Block selected for editing:', blockId, blockData.nome);
+    }
+  }, [clearAllSelections, updateFeatureStyle, onBlockSelect]);
+
+  // Handle measurement selection
+  const handleMeasurementClick = useCallback((feature: Feature) => {
+    const measurementData = feature.get('measurementData');
+    if (measurementData) {
+      setEditingMeasurement(measurementData);
+      setMeasurementForm({
+        name: measurementData.name,
+        isDrain: measurementData.isDrain
+      });
+    }
+  }, []);
+
+  // Handle save edit - only update the selected feature
+  const handleSaveEdit = useCallback(() => {
+    if (!editingBlock || !selectedFeature) {
+      console.log('No editing block or selected feature');
       return;
     }
-  }, [drawingMode, handleMultiSelect]);
+
+    const blockId = selectedFeature.get('blockId');
+    console.log('Saving edit for block:', blockId, editForm);
+    
+    // Update the selected feature's style and properties
+    updateFeatureStyle(
+      selectedFeature,
+      editForm.name,
+      editForm.color,
+      editForm.transparency,
+      editingBlock.area_acres,
+      false // Remove selection after save
+    );
+    
+    // Update the blockData stored in the feature
+    const updatedBlockData = {
+      ...editingBlock,
+      nome: editForm.name,
+      cor: editForm.color,
+      transparencia: editForm.transparency
+    };
+    selectedFeature.set('blockData', updatedBlockData);
+    
+    // Update in parent component
+    onBlockUpdate(blockId, {
+      name: editForm.name,
+      nome: editForm.name,
+      color: editForm.color,
+      cor: editForm.color,
+      transparency: editForm.transparency
+    });
+
+    // Force refresh of vector source
+    if (vectorSource.current) {
+      vectorSource.current.changed();
+    }
+
+    // Clear selection
+    setEditingBlock(null);
+    setEditForm({ name: '', color: '#10B981', transparency: 0.4 });
+    setSelectedFeature(null);
+  }, [editingBlock, selectedFeature, editForm, onBlockUpdate, updateFeatureStyle]);
+
+  // Handle save measurement
+  const handleSaveMeasurement = useCallback(() => {
+    if (!editingMeasurement) return;
+
+    const updatedMeasurement = {
+      ...editingMeasurement,
+      name: measurementForm.name,
+      isDrain: measurementForm.isDrain
+    };
+
+    // Update measurements array
+    setMeasurements(prev => prev.map(m => 
+      m.id === editingMeasurement.id ? updatedMeasurement : m
+    ));
+
+    // Update feature style
+    if (measurementSource.current) {
+      const features = measurementSource.current.getFeatures();
+      const feature = features.find(f => f.get('measurementId') === editingMeasurement.id);
+      if (feature) {
+        feature.set('measurementData', updatedMeasurement);
+        feature.setStyle(createMeasurementStyle(updatedMeasurement));
+      }
+    }
+
+    setEditingMeasurement(null);
+    setMeasurementForm({ name: '', isDrain: false });
+  }, [editingMeasurement, measurementForm, createMeasurementStyle]);
+
+  // Handle delete edit
+  const handleDeleteEdit = useCallback(() => {
+    if (!editingBlock || !selectedFeature) return;
+
+    const blockId = selectedFeature.get('blockId');
+    const blockName = editingBlock.nome || 'Bloco sem nome';
+    
+    if (confirm(`Tem certeza que deseja deletar o bloco "${blockName}"?`)) {
+      // Remove from vector source
+      if (vectorSource.current) {
+        vectorSource.current.removeFeature(selectedFeature);
+      }
+      
+      // Call parent delete function
+      onBlockDelete(blockId);
+      
+      // Clear selection
+      setEditingBlock(null);
+      setEditForm({ name: '', color: '#10B981', transparency: 0.4 });
+      setSelectedFeature(null);
+      
+      console.log('Block deleted:', blockId);
+    }
+  }, [editingBlock, selectedFeature, onBlockDelete]);
+
+  // Handle delete measurement
+  const handleDeleteMeasurement = useCallback(() => {
+    if (!editingMeasurement) return;
+
+    if (confirm(`Tem certeza que deseja deletar a medição "${editingMeasurement.name}"?`)) {
+      // Remove from measurements array
+      setMeasurements(prev => prev.filter(m => m.id !== editingMeasurement.id));
+
+      // Remove from vector source
+      if (measurementSource.current) {
+        const features = measurementSource.current.getFeatures();
+        const feature = features.find(f => f.get('measurementId') === editingMeasurement.id);
+        if (feature) {
+          measurementSource.current.removeFeature(feature);
+        }
+      }
+
+      setEditingMeasurement(null);
+      setMeasurementForm({ name: '', isDrain: false });
+    }
+  }, [editingMeasurement]);
+
+  // Handle cancel edit
+  const handleCancelEdit = useCallback(() => {
+    clearAllSelections();
+  }, [clearAllSelections]);
 
   // Create measurement tooltip
   const createMeasureTooltip = useCallback(() => {
@@ -378,15 +472,13 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           
           const blockData = feature.get('blockData');
           const isSelected = feature.get('isSelected') || false;
-          const isMultiSelected = feature.get('isMultiSelected') || false;
           
           return createBlockStyle(
             blockData?.cor || feature.get('color') || selectedColor,
             blockData?.transparencia !== undefined ? blockData.transparencia : feature.get('transparency') || transparency,
             blockData?.nome || feature.get('name'),
             blockData?.area_acres,
-            isSelected,
-            isMultiSelected
+            isSelected
           );
         },
       });
@@ -436,7 +528,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }),
       });
 
-      // Add click event for feature selection with Ctrl key support
+      // Add click event for feature selection
       map.on('click', (event) => {
         const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => {
           return feature instanceof Feature ? feature : null;
@@ -444,10 +536,12 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         
         if (feature) {
           if (feature.get('blockData')) {
-            event.preventDefault();
             handleBlockClick(feature);
+          } else if (feature.get('measurementData')) {
+            handleMeasurementClick(feature);
           }
         } else {
+          // Clicked on empty area, clear selection
           clearAllSelections();
         }
       });
@@ -510,7 +604,6 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           feature.set('transparency', block.transparencia !== undefined ? block.transparencia : transparency);
           feature.set('blockData', block);
           feature.set('isSelected', false);
-          feature.set('isMultiSelected', false);
           
           console.log('Adding block to map:', block.id, block.nome, 'transparency:', block.transparencia !== undefined ? block.transparencia : transparency);
           
@@ -609,7 +702,6 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           feature.set('transparency', blockData.transparency);
           feature.set('blockData', blockData);
           feature.set('isSelected', false);
-          feature.set('isMultiSelected', false);
 
           console.log('New block drawn:', uniqueId, blockData.name);
 
@@ -688,7 +780,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           setMeasurements(prev => [...prev, measurementData]);
 
           // Open edit form
-          // Removed editingMeasurement and measurementForm states and UI per refactor instructions
+          setEditingMeasurement(measurementData);
+          setMeasurementForm({
+            name: measurementData.name,
+            isDrain: false
+          });
 
           console.log('New measurement created:', measurementData);
         }
@@ -703,17 +799,17 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       setCurrentDraw(draw);
 
     } else if (drawingMode === 'edit') {
-      // Modo edição - completamente corrigido
+      // Modo edição
       const select = new Select({
         style: (feature) => {
           if (!(feature instanceof Feature)) return undefined;
           const blockData = feature.get('blockData');
           return createBlockStyle(
             blockData?.cor || feature.get('color') || selectedColor,
-            blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
+            transparency,
             blockData?.nome || feature.get('name'),
             blockData?.area_acres,
-            true // Always show as selected in edit mode
+            true
           );
         }
       });
@@ -722,29 +818,12 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         features: select.getFeatures(),
       });
 
-      // Clear all selections when entering edit mode
-      clearAllSelections();
-
       select.on('select', (event) => {
         const selectedFeatures = event.selected;
         if (selectedFeatures.length > 0) {
           const feature = selectedFeatures[0];
           if (feature instanceof Feature && feature.get('blockData')) {
-            const blockData = feature.get('blockData');
-            onBlockSelect(blockData);
-            
-            // Update the feature to show it's selected for editing
-            updateFeatureStyle(
-              feature,
-              blockData?.nome || '',
-              blockData?.cor || '#10B981',
-              blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
-              blockData?.area_acres,
-              true, // isSelected = true for edit mode
-              false
-            );
-            
-            console.log('Block selected for editing:', blockData.id, blockData.nome);
+            handleBlockClick(feature);
           }
         }
       });
@@ -775,10 +854,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
               feature,
               blockData?.nome || feature.get('name') || '',
               blockData?.cor || feature.get('color') || selectedColor,
-              blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
-              blockData?.area_acres,
-              true, // Keep selected in edit mode
-              false
+              metrics.area_acres,
+              feature.get('isSelected') || false
             );
 
             onBlockUpdate(blockId, {
@@ -831,11 +908,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
       map.addInteraction(select);
       setCurrentSelect(select);
-    } else if (drawingMode === 'multiselect') {
-      // Modo seleção múltipla - sem interações especiais, usar apenas cliques
-      clearAllSelections();
     }
-  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, updateFeatureStyle, createMeasurementStyle, measurements.length, createMeasureTooltip, formatLength, clearAllSelections, onBlockSelect]);
+  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, updateFeatureStyle, createMeasurementStyle, measurements.length, createMeasureTooltip, formatLength]);
 
   // Centralizar mapa em coordenadas específicas
   useEffect(() => {
@@ -860,45 +934,116 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
   }, [centerCoordinates, boundingBox]);
 
-  // Multi-selection summary panel - only show when in multiselect mode
-  const multiSelectPanel = selectedBlocks.size > 0 && drawingMode === 'multiselect' && (
-    <div className="w-full mt-4">
-      <Card className="bg-white shadow-lg border">
+  // Quick Edit Panel - Block
+  const editPanel = editingBlock && selectedFeature && (
+    <div className="absolute top-4 right-4 z-50">
+      <Card className="w-80 bg-white shadow-lg border">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
-            <CheckSquare className="w-5 h-5 text-green-600" />
-            Blocos Selecionados ({selectedBlocks.size})
+            <Edit2 className="w-5 h-5" />
+            Edição Rápida - Bloco
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
-            <div className="text-center">
-              <p className="text-sm text-green-700 mb-1">Área Total Selecionada</p>
-              <p className="text-2xl font-bold text-green-900">
-                {totalSelectedArea.toFixed(4)} acres
-              </p>
-            </div>
+          <div>
+            <Label htmlFor="quick-edit-name">Nome do Bloco</Label>
+            <Input
+              id="quick-edit-name"
+              value={editForm.name}
+              onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+              placeholder="Digite o nome do bloco"
+            />
           </div>
           
-          <div className="space-y-2 max-h-32 overflow-y-auto">
-            {Array.from(selectedBlocks).map(blockId => {
-              const feature = findFeatureByBlockId(blockId);
-              const blockData = feature?.get('blockData');
-              return (
-                <div key={blockId} className="flex justify-between items-center p-2 bg-gray-50 rounded text-sm">
-                  <span className="font-medium truncate flex-1">
-                    {blockData?.nome || 'Sem nome'}
-                  </span>
-                  <span className="text-gray-600 ml-2">
-                    {blockData?.area_acres?.toFixed(4) || 0} acres
-                  </span>
+          <div>
+            <Label htmlFor="quick-edit-color">Cor do Bloco</Label>
+            <UISelect 
+              value={editForm.color} 
+              onValueChange={(value) => setEditForm({...editForm, color: value})}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white border shadow-lg z-50">
+                {colorOptions.map((color) => (
+                  <SelectItem key={color.value} value={color.value}>
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className="w-4 h-4 rounded-full border border-gray-300"
+                        style={{ backgroundColor: color.value }}
+                      />
+                      <div>
+                        <span className="font-medium">{color.label}</span>
+                        <span className="text-xs text-gray-500 ml-2">{color.name}</span>
+                      </div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </UISelect>
+          </div>
+
+          <div>
+            <Label htmlFor="transparency-slider">
+              Transparência: {Math.round((1 - editForm.transparency) * 100)}%
+            </Label>
+            <Slider
+              id="transparency-slider"
+              value={[editForm.transparency]}
+              onValueChange={(value) => setEditForm({...editForm, transparency: value[0]})}
+              max={1}
+              min={0}
+              step={0.01}
+              className="w-full mt-2"
+            />
+          </div>
+
+          {/* Display block metrics - only acres */}
+          {editingBlock && (
+            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+              <h4 className="font-medium text-green-900 mb-2">Dados do Bloco</h4>
+              <div className="grid grid-cols-1 gap-2 text-sm">
+                <div>
+                  <span className="text-green-700">ID:</span>
+                  <p className="font-medium text-xs">{selectedFeature.get('blockId')}</p>
                 </div>
-              );
-            })}
+                <div>
+                  <span className="text-green-700">Área:</span>
+                  <p className="font-medium">{editingBlock.area_acres?.toFixed(4) || 0} acres</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <div className="flex gap-2 pt-2">
+            <Button 
+              onClick={handleSaveEdit}
+              className="flex-1 bg-green-600 hover:bg-green-700"
+              size="sm"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Salvar
+            </Button>
+            <Button 
+              onClick={handleDeleteEdit}
+              variant="destructive"
+              size="sm"
+              className="flex-1"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Deletar
+            </Button>
+            <Button 
+              onClick={handleCancelEdit}
+              variant="outline"
+              size="sm"
+            >
+              <X className="w-4 h-4" />
+            </Button>
           </div>
 
           <div className="text-xs text-gray-500 pt-2">
-            <strong>Dica:</strong> Clique nos blocos do mapa para selecionar/desmarcar.
+            <strong>Dica:</strong> Clique em qualquer bloco no mapa para editar rapidamente seu nome e cor.
           </div>
         </CardContent>
       </Card>
@@ -921,15 +1066,14 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           blockData.cor || feature.get('color') || selectedColor,
           transparency, // Use global transparency
           blockData.area_acres,
-          feature.get('isSelected') || false,
-          feature.get('isMultiSelected') || false
+          feature.get('isSelected') || false
         );
       }
     });
   }, [transparency, selectedColor, mapReady, updateFeatureStyle]);
 
   return (
-    <div className="relative w-full h-full flex flex-col">
+    <div className="relative w-full h-full">
       {!mapReady && (
         <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg z-10">
           <div className="text-center">
@@ -941,14 +1085,96 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       
       <div
         ref={mapRef}
-        className="w-full h-full border border-gray-300 rounded-lg flex-1"
+        className="w-full h-full border border-gray-300 rounded-lg"
         style={{ 
           minHeight: '500px',
           backgroundColor: printMode ? 'white' : 'transparent' 
         }}
       />
       
-      {multiSelectPanel}
+      {editPanel}
+
+      {/* Quick Edit Panel - Measurement */}
+      {editingMeasurement && (
+        <div className="absolute top-4 right-4 z-50">
+          <Card className="w-80 bg-white shadow-lg border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Ruler className="w-5 h-5" />
+                Edição - Medição
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="measurement-name">Nome da Medição</Label>
+                <Input
+                  id="measurement-name"
+                  value={measurementForm.name}
+                  onChange={(e) => setMeasurementForm({...measurementForm, name: e.target.value})}
+                  placeholder="Digite o nome da medição"
+                />
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="is-drain"
+                  checked={measurementForm.isDrain}
+                  onCheckedChange={(checked) => setMeasurementForm({...measurementForm, isDrain: !!checked})}
+                />
+                <Label htmlFor="is-drain">É um dreno (cor azul)</Label>
+              </div>
+
+              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <h4 className="font-medium text-blue-900 mb-2">Dados da Medição</h4>
+                <div className="grid grid-cols-1 gap-2 text-sm">
+                  <div>
+                    <span className="text-blue-700">Distância:</span>
+                    <p className="font-medium">{editingMeasurement.distance.toFixed(2)} metros</p>
+                  </div>
+                  <div>
+                    <span className="text-blue-700">Tipo:</span>
+                    <p className="font-medium">{measurementForm.isDrain ? 'Dreno' : 'Medição'}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex gap-2 pt-2">
+                <Button 
+                  onClick={handleSaveMeasurement}
+                  className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  size="sm"
+                >
+                  <Save className="w-4 h-4 mr-2" />
+                  Salvar
+                </Button>
+                <Button 
+                  onClick={handleDeleteMeasurement}
+                  variant="destructive"
+                  size="sm"
+                  className="flex-1"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Deletar
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setEditingMeasurement(null);
+                    setMeasurementForm({ name: '', isDrain: false });
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="text-xs text-gray-500 pt-2">
+                <strong>Dica:</strong> Clique em qualquer medição no mapa para editar rapidamente.
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 };
