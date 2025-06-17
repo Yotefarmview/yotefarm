@@ -12,7 +12,8 @@ import {
   Palette,
   Square,
   Edit3,
-  Trash2
+  Trash2,
+  CheckSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -31,8 +32,8 @@ interface MapControlsProps {
   onColorChange: (color: string) => void;
   transparency: number;
   onTransparencyChange: (value: number) => void;
-  drawingMode: 'polygon' | 'edit' | 'delete' | null;
-  onDrawingModeChange: (mode: 'polygon' | 'edit' | 'delete' | null) => void;
+  drawingMode: 'polygon' | 'edit' | 'delete' | 'multiselect' | null;
+  onDrawingModeChange: (mode: 'polygon' | 'edit' | 'delete' | 'multiselect' | null) => void;
   onCenterMap: () => void;
 }
 
@@ -136,7 +137,7 @@ const MapControls: React.FC<MapControlsProps> = ({
       <div className="space-y-3">
         <h4 className="text-sm font-medium text-gray-700">Ferramentas</h4>
         
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Button
             variant={drawingMode === 'polygon' ? "default" : "outline"}
             size="sm"
@@ -147,6 +148,18 @@ const MapControls: React.FC<MapControlsProps> = ({
             Desenhar
           </Button>
 
+          <Button
+            variant={drawingMode === 'multiselect' ? "default" : "outline"}
+            size="sm"
+            onClick={() => onDrawingModeChange(drawingMode === 'multiselect' ? null : 'multiselect')}
+            className="flex items-center gap-2"
+          >
+            <CheckSquare className="w-4 h-4" />
+            Múltiplos
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
           <Button
             variant={drawingMode === 'edit' ? "default" : "outline"}
             size="sm"
