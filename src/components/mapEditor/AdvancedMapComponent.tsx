@@ -16,6 +16,8 @@ import * as turf from '@turf/turf';
 import GeoJSON from 'ol/format/GeoJSON';
 import { unByKey } from 'ol/Observable';
 import Overlay from 'ol/Overlay';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CheckSquare } from 'lucide-react';
 import 'ol/ol.css';
 
 interface BlockData {
