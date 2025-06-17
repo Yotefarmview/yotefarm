@@ -315,23 +315,10 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     if (drawingMode === 'multiselect') {
       handleMultiSelect(feature);
     } else if (drawingMode === 'edit') {
-      // Clear other selections first
-      clearAllSelections();
-      // Select this block for editing
-      onBlockSelect(feature.get('blockData'));
-      // Update visual style to show it's selected for editing
-      const blockData = feature.get('blockData');
-      updateFeatureStyle(
-        feature,
-        blockData?.nome || '',
-        blockData?.cor || '#10B981',
-        blockData?.transparencia || 0.4,
-        blockData?.area_acres,
-        true, // isSelected = true for edit mode
-        false
-      );
+      // Don't interfere with OpenLayers Select interaction in edit mode
+      return;
     }
-  }, [drawingMode, handleMultiSelect, clearAllSelections, onBlockSelect, updateFeatureStyle]);
+  }, [drawingMode, handleMultiSelect]);
 
   // Create measurement tooltip
   const createMeasureTooltip = useCallback(() => {
@@ -716,14 +703,14 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       setCurrentDraw(draw);
 
     } else if (drawingMode === 'edit') {
-      // Modo edição - corrigido
+      // Modo edição - completamente corrigido
       const select = new Select({
         style: (feature) => {
           if (!(feature instanceof Feature)) return undefined;
           const blockData = feature.get('blockData');
           return createBlockStyle(
             blockData?.cor || feature.get('color') || selectedColor,
-            transparency,
+            blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
             blockData?.nome || feature.get('name'),
             blockData?.area_acres,
             true // Always show as selected in edit mode
@@ -735,7 +722,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         features: select.getFeatures(),
       });
 
-      // Clear selections when entering edit mode
+      // Clear all selections when entering edit mode
       clearAllSelections();
 
       select.on('select', (event) => {
@@ -743,7 +730,21 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         if (selectedFeatures.length > 0) {
           const feature = selectedFeatures[0];
           if (feature instanceof Feature && feature.get('blockData')) {
-            onBlockSelect(feature.get('blockData'));
+            const blockData = feature.get('blockData');
+            onBlockSelect(blockData);
+            
+            // Update the feature to show it's selected for editing
+            updateFeatureStyle(
+              feature,
+              blockData?.nome || '',
+              blockData?.cor || '#10B981',
+              blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
+              blockData?.area_acres,
+              true, // isSelected = true for edit mode
+              false
+            );
+            
+            console.log('Block selected for editing:', blockData.id, blockData.nome);
           }
         }
       });
