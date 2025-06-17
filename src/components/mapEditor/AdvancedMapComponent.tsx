@@ -55,7 +55,7 @@ interface AdvancedMapComponentProps {
   showBackground: boolean;
   printMode: boolean;
   showNDVI: boolean;
-  drawingMode: 'polygon' | 'edit' | 'delete' | 'measure' | null;
+  drawingMode: 'polygon' | 'linestring' | 'edit' | 'delete' | 'measure' | null;
   onPolygonDrawn: (blockData: BlockData) => void;
   onBlockUpdate: (blockId: string, updates: Partial<BlockData>) => void;
   onBlockDelete: (blockId: string) => void;
@@ -84,6 +84,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const mapInstance = useRef<Map | null>(null);
   const vectorSource = useRef<VectorSource | null>(null);
   const measurementSource = useRef<VectorSource | null>(null);
+  const drawingSource = useRef<VectorSource | null>(null);
   const measureTooltipElement = useRef<HTMLDivElement | null>(null);
   const measureTooltip = useRef<any>(null);
   const [currentDraw, setCurrentDraw] = useState<Draw | null>(null);
@@ -99,6 +100,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const [editingMeasurement, setEditingMeasurement] = useState<MeasurementData | null>(null);
   const [measurementForm, setMeasurementForm] = useState({ name: '', isDrain: false });
   const [measurements, setMeasurements] = useState<MeasurementData[]>([]);
+
+  // LineString drawing states
+  const [drawingPoints, setDrawingPoints] = useState<number[][]>([]);
+  const [currentLineFeature, setCurrentLineFeature] = useState<Feature | null>(null);
+  const [isDrawingComplete, setIsDrawingComplete] = useState(false);
 
   // Color options for blocks
   const colorOptions = [
@@ -161,6 +167,27 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     });
   }, []);
 
+  // Create style for drawing lines
+  const createDrawingLineStyle = useCallback(() => {
+    return new Style({
+      stroke: new Stroke({
+        color: selectedColor,
+        width: 3,
+        lineDash: [5, 5],
+      }),
+      image: new CircleStyle({
+        radius: 5,
+        fill: new Fill({
+          color: selectedColor,
+        }),
+        stroke: new Stroke({
+          color: '#fff',
+          width: 2,
+        }),
+      }),
+    });
+  }, [selectedColor]);
+
   // Criar estilo para medições
   const createMeasurementStyle = useCallback((measurement: MeasurementData, isSelected?: boolean) => {
     const color = measurement.isDrain ? '#3B82F6' : '#FF6B35';
@@ -214,6 +241,114 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
   }, []);
 
+  // Convert linestring points to polygon
+  const convertLineToPolygon = useCallback((linePoints: number[][]) => {
+    if (linePoints.length < 3) return null;
+    
+    // Close the polygon by adding the first point at the end if needed
+    const closedPoints = [...linePoints];
+    const firstPoint = closedPoints[0];
+    const lastPoint = closedPoints[closedPoints.length - 1];
+    
+    if (firstPoint[0] !== lastPoint[0] || firstPoint[1] !== lastPoint[1]) {
+      closedPoints.push([...firstPoint]);
+    }
+    
+    return closedPoints;
+  }, []);
+
+  // Handle line drawing click
+  const handleLineDrawingClick = useCallback((coordinate: number[]) => {
+    const lonLat = toLonLat(coordinate);
+    
+    setDrawingPoints(prev => {
+      const newPoints = [...prev, lonLat];
+      
+      // Update the visual line
+      if (drawingSource.current) {
+        drawingSource.current.clear();
+        
+        if (newPoints.length >= 2) {
+          const lineCoords = newPoints.map(point => fromLonLat(point));
+          const lineGeometry = new LineString(lineCoords);
+          const lineFeature = new Feature({ geometry: lineGeometry });
+          lineFeature.setStyle(createDrawingLineStyle());
+          drawingSource.current.addFeature(lineFeature);
+          setCurrentLineFeature(lineFeature);
+        }
+      }
+      
+      return newPoints;
+    });
+  }, [createDrawingLineStyle]);
+
+  // Complete line drawing and create polygon
+  const completeLineDrawing = useCallback(() => {
+    if (drawingPoints.length < 3) {
+      console.log('Precisa de pelo menos 3 pontos para criar um polígono');
+      return;
+    }
+
+    const polygonCoordinates = convertLineToPolygon(drawingPoints);
+    if (!polygonCoordinates) return;
+
+    const metrics = calculatePolygonMetrics(polygonCoordinates);
+    
+    const blockData: BlockData = {
+      name: `Bloco ${Date.now()}`,
+      color: selectedColor,
+      transparency,
+      coordinates: drawingPoints, // Use original points without closing
+      ...metrics
+    };
+
+    // Create the actual polygon feature for the vector source
+    const polygon = new Polygon([polygonCoordinates.map(coord => fromLonLat(coord))]);
+    const feature = new Feature({ geometry: polygon });
+    
+    const uniqueId = `temp_${Date.now()}`;
+    feature.set('blockId', uniqueId);
+    feature.set('name', blockData.name);
+    feature.set('color', blockData.color);
+    feature.set('transparency', blockData.transparency);
+    feature.set('blockData', blockData);
+    feature.set('isSelected', false);
+
+    const style = createBlockStyle(
+      blockData.color,
+      blockData.transparency,
+      blockData.name,
+      blockData.area_acres,
+      false
+    );
+    feature.setStyle(style);
+
+    if (vectorSource.current) {
+      vectorSource.current.addFeature(feature);
+    }
+
+    // Clear drawing state
+    if (drawingSource.current) {
+      drawingSource.current.clear();
+    }
+    setDrawingPoints([]);
+    setCurrentLineFeature(null);
+    setIsDrawingComplete(false);
+
+    console.log('Polígono criado a partir de linha:', uniqueId, blockData.name);
+    onPolygonDrawn(blockData);
+  }, [drawingPoints, convertLineToPolygon, calculatePolygonMetrics, selectedColor, transparency, createBlockStyle, onPolygonDrawn]);
+
+  // Cancel line drawing
+  const cancelLineDrawing = useCallback(() => {
+    if (drawingSource.current) {
+      drawingSource.current.clear();
+    }
+    setDrawingPoints([]);
+    setCurrentLineFeature(null);
+    setIsDrawingComplete(false);
+  }, []);
+
   // Find feature by block ID
   const findFeatureByBlockId = useCallback((blockId: string): Feature | null => {
     if (!vectorSource.current) return null;
@@ -254,6 +389,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           false // Not selected
         );
         feature.setStyle(style);
+        feature.set('isSelected', false);
       }
     });
     
@@ -303,6 +439,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         true // Show as selected
       );
       feature.setStyle(selectedStyle);
+      feature.set('isSelected', true);
       
       // Add to select interaction if exists
       if (currentSelect) {
@@ -354,6 +491,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     selectedFeature.set('name', editForm.name);
     selectedFeature.set('color', editForm.color);
     selectedFeature.set('transparency', editForm.transparency);
+    selectedFeature.set('isSelected', false);
     
     // Update the feature's style with new values
     const newStyle = createBlockStyle(
@@ -435,6 +573,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       setEditingBlock(null);
       setEditForm({ name: '', color: '#10B981', transparency: 0.4 });
       setSelectedFeature(null);
+      setIsEditPanelOpen(false);
       
       console.log('Block deleted:', blockId);
     }
@@ -516,8 +655,10 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       // Create VectorSources
       const newVectorSource = new VectorSource();
       const newMeasurementSource = new VectorSource();
+      const newDrawingSource = new VectorSource();
       vectorSource.current = newVectorSource;
       measurementSource.current = newMeasurementSource;
+      drawingSource.current = newDrawingSource;
       
       const vectorLayer = new VectorLayer({
         source: newVectorSource,
@@ -544,6 +685,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           const measurementData = feature.get('measurementData');
           return measurementData ? createMeasurementStyle(measurementData) : undefined;
         },
+      });
+
+      const drawingLayer = new VectorLayer({
+        source: newDrawingSource,
+        style: createDrawingLineStyle(),
       });
 
       // Background layers
@@ -574,7 +720,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       
       const map = new Map({
         target: mapRef.current,
-        layers: [osmLayer, satelliteLayer, ndviLayer, vectorLayer, measurementLayer],
+        layers: [osmLayer, satelliteLayer, ndviLayer, vectorLayer, measurementLayer, drawingLayer],
         view: new View({
           center: fromLonLat(defaultCenter),
           zoom: 10,
@@ -599,6 +745,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }
         vectorSource.current = null;
         measurementSource.current = null;
+        drawingSource.current = null;
         setMapReady(false);
       };
     } catch (error) {
@@ -714,6 +861,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     // Clear selections when changing modes
     if (drawingMode !== 'edit') {
       clearAllSelections();
+    }
+
+    // Clear line drawing state when changing modes
+    if (drawingMode !== 'linestring') {
+      cancelLineDrawing();
     }
 
     if (drawingMode === 'edit') {
@@ -871,6 +1023,29 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       map.addInteraction(snap);
       setCurrentDraw(draw);
 
+    } else if (drawingMode === 'linestring') {
+      // LineString drawing mode - manual click-by-click
+      const clickHandler = (event: any) => {
+        handleLineDrawingClick(event.coordinate);
+      };
+
+      const keyHandler = (event: KeyboardEvent) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          completeLineDrawing();
+        } else if (event.key === 'Escape') {
+          event.preventDefault();
+          cancelLineDrawing();
+        }
+      };
+
+      map.on('click', clickHandler);
+      document.addEventListener('keydown', keyHandler);
+
+      // Store handlers for cleanup
+      map.set('lineDrawingClickHandler', clickHandler);
+      map.set('lineDrawingKeyHandler', keyHandler);
+
     } else if (drawingMode === 'measure') {
       const draw = new Draw({
         source: measurementSource.current!,
@@ -990,7 +1165,22 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       map.addInteraction(select);
       setCurrentSelect(select);
     }
-  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, createModifyStyle, clearAllSelections, measurements.length, createMeasureTooltip, formatLength]);
+
+    // Cleanup function
+    return () => {
+      if (drawingMode === 'linestring') {
+        const clickHandler = map.get('lineDrawingClickHandler');
+        const keyHandler = map.get('lineDrawingKeyHandler');
+        
+        if (clickHandler) {
+          map.un('click', clickHandler);
+        }
+        if (keyHandler) {
+          document.removeEventListener('keydown', keyHandler);
+        }
+      }
+    };
+  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, createModifyStyle, clearAllSelections, measurements.length, createMeasureTooltip, formatLength, handleLineDrawingClick, completeLineDrawing, cancelLineDrawing]);
 
   // Center map effect
   useEffect(() => {
@@ -1036,6 +1226,57 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       }
     });
   }, [transparency, selectedColor, mapReady, updateFeatureStyle]);
+
+  // Line drawing instructions panel
+  const lineDrawingPanel = drawingMode === 'linestring' && (
+    <div className="absolute top-4 left-4 z-50">
+      <Card className="w-80 bg-white shadow-lg border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Edit2 className="w-5 h-5" />
+            Desenho por Linha
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="text-sm text-gray-700">
+            <p><strong>Instruções:</strong></p>
+            <ul className="list-disc list-inside space-y-1 mt-2">
+              <li>Clique no mapa para adicionar pontos</li>
+              <li>Pressione <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Enter</kbd> ou <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Espaço</kbd> para finalizar</li>
+              <li>Pressione <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Esc</kbd> para cancelar</li>
+              <li>Mínimo de 3 pontos para criar polígono</li>
+            </ul>
+          </div>
+          
+          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <div className="text-sm">
+              <span className="text-blue-700 font-medium">Pontos adicionados:</span>
+              <p className="font-bold text-lg">{drawingPoints.length}</p>
+            </div>
+          </div>
+          
+          <div className="flex gap-2">
+            <Button 
+              onClick={completeLineDrawing}
+              disabled={drawingPoints.length < 3}
+              className="flex-1 bg-green-600 hover:bg-green-700"
+              size="sm"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Finalizar ({drawingPoints.length})
+            </Button>
+            <Button 
+              onClick={cancelLineDrawing}
+              variant="outline"
+              size="sm"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   // Quick Edit Panel - Block
   const editPanel = isEditPanelOpen && editingBlock && selectedFeature && (
@@ -1255,8 +1496,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }}
       />
       
+      {lineDrawingPanel}
       {editPanel}
-
       {measurementEditPanel}
     </div>
   );
