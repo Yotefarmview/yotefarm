@@ -23,7 +23,7 @@ import { Select as UISelect, SelectContent, SelectItem, SelectTrigger, SelectVal
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
-import { Save, X, Edit2, Trash2, Ruler } from 'lucide-react';
+import { Save, X, Edit2, Trash2, Ruler, CheckSquare } from 'lucide-react';
 import 'ol/ol.css';
 
 interface BlockData {
@@ -112,20 +112,36 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     { value: '#06B6D4', label: 'Turquesa', name: 'Dreno' }
   ];
 
+  // New multi-select states
+  const [selectedBlocks, setSelectedBlocks] = useState<Set<string>>(new Set());
+  const [totalSelectedArea, setTotalSelectedArea] = useState(0);
+
   // Criar estilo para blocos com nome como legenda e área (apenas acres)
-  const createBlockStyle = useCallback((color: string, transparency: number, name?: string, area_acres?: number, isSelected?: boolean) => {
+  const createBlockStyle = useCallback((color: string, transparency: number, name?: string, area_acres?: number, isSelected?: boolean, isMultiSelected?: boolean) => {
     const displayText = name ? `${name}\n${area_acres?.toFixed(4) || 0} acres` : '';
     
     // Convert transparency to alpha correctly - transparency 0 = fully opaque, transparency 1 = fully transparent
     const alpha = Math.round((1 - transparency) * 255).toString(16).padStart(2, '0');
+    
+    // Different colors for different selection states
+    let strokeColor = color;
+    let strokeWidth = 2;
+    
+    if (isMultiSelected) {
+      strokeColor = '#00FF00'; // Green for multi-selected
+      strokeWidth = 4;
+    } else if (isSelected) {
+      strokeColor = '#FFD700'; // Gold for single selected
+      strokeWidth = 4;
+    }
     
     return new Style({
       fill: new Fill({
         color: color + alpha,
       }),
       stroke: new Stroke({
-        color: isSelected ? '#FFD700' : color,
-        width: isSelected ? 4 : 2,
+        color: strokeColor,
+        width: strokeWidth,
       }),
       text: displayText ? new Text({
         text: displayText,
@@ -201,8 +217,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   }, []);
 
   // Update specific feature style and properties
-  const updateFeatureStyle = useCallback((feature: Feature, name: string, color: string, transparency: number, area_acres?: number, isSelected?: boolean) => {
-    const style = createBlockStyle(color, transparency, name, area_acres, isSelected);
+  const updateFeatureStyle = useCallback((feature: Feature, name: string, color: string, transparency: number, area_acres?: number, isSelected?: boolean, isMultiSelected?: boolean) => {
+    const style = createBlockStyle(color, transparency, name, area_acres, isSelected, isMultiSelected);
     feature.setStyle(style);
     
     // Update feature properties
@@ -210,8 +226,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     feature.set('color', color);
     feature.set('transparency', transparency);
     feature.set('isSelected', isSelected);
+    feature.set('isMultiSelected', isMultiSelected);
     
-    console.log(`Updated feature style - ID: ${feature.get('blockId')}, Name: ${name}, Color: ${color}, Transparency: ${transparency}, Selected: ${isSelected}`);
+    console.log(`Updated feature style - ID: ${feature.get('blockId')}, Name: ${name}, Multi-selected: ${isMultiSelected}`);
   }, [createBlockStyle]);
 
   // Clear all selections
@@ -226,6 +243,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         blockData?.cor || feature.get('color') || '#10B981',
         blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
         blockData?.area_acres,
+        false,
         false
       );
     });
@@ -235,20 +253,64 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     setEditForm({ name: '', color: '#10B981', transparency: 0.4 });
     setEditingMeasurement(null);
     setMeasurementForm({ name: '', isDrain: false });
+    setSelectedBlocks(new Set());
+    setTotalSelectedArea(0);
   }, [updateFeatureStyle, transparency]);
 
-  // Handle block selection for editing
-  const handleBlockClick = useCallback((feature: Feature) => {
-    console.log('Block clicked:', feature.get('blockId'));
-    
-    // Clear previous selections
-    clearAllSelections();
-    
-    const blockData = feature.get('blockData');
+  // Handle multi-selection
+  const handleMultiSelect = useCallback((feature: Feature, ctrlPressed: boolean) => {
     const blockId = feature.get('blockId');
+    const blockData = feature.get('blockData');
     
-    if (blockData && blockId) {
-      // Set this feature as selected
+    if (!blockId || !blockData) return;
+
+    if (ctrlPressed) {
+      // Multi-select mode
+      const newSelectedBlocks = new Set(selectedBlocks);
+      
+      if (newSelectedBlocks.has(blockId)) {
+        // Remove from selection
+        newSelectedBlocks.delete(blockId);
+        updateFeatureStyle(
+          feature,
+          blockData.nome || '',
+          blockData.cor || '#10B981',
+          blockData.transparencia || 0.4,
+          blockData.area_acres,
+          false,
+          false
+        );
+      } else {
+        // Add to selection
+        newSelectedBlocks.add(blockId);
+        updateFeatureStyle(
+          feature,
+          blockData.nome || '',
+          blockData.cor || '#10B981',
+          blockData.transparencia || 0.4,
+          blockData.area_acres,
+          false,
+          true
+        );
+      }
+      
+      setSelectedBlocks(newSelectedBlocks);
+      
+      // Calculate total area
+      let totalArea = 0;
+      vectorSource.current?.getFeatures().forEach(f => {
+        const fBlockId = f.get('blockId');
+        const fBlockData = f.get('blockData');
+        if (newSelectedBlocks.has(fBlockId) && fBlockData?.area_acres) {
+          totalArea += fBlockData.area_acres;
+        }
+      });
+      setTotalSelectedArea(totalArea);
+      
+    } else {
+      // Single select mode (existing functionality)
+      clearAllSelections();
+      
       setSelectedFeature(feature);
       setEditingBlock(blockData);
       setEditForm({
@@ -257,20 +319,25 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         transparency: blockData.transparencia || 0.4
       });
       
-      // Update style to show selection
       updateFeatureStyle(
         feature,
         blockData.nome || '',
         blockData.cor || '#10B981',
         blockData.transparencia || 0.4,
         blockData.area_acres,
-        true
+        true,
+        false
       );
       
       onBlockSelect(blockData);
-      console.log('Block selected for editing:', blockId, blockData.nome);
     }
-  }, [clearAllSelections, updateFeatureStyle, onBlockSelect]);
+  }, [selectedBlocks, updateFeatureStyle, clearAllSelections, onBlockSelect]);
+
+  // Handle block selection for editing
+  const handleBlockClick = useCallback((feature: Feature, ctrlPressed: boolean = false) => {
+    console.log('Block clicked:', feature.get('blockId'), 'Ctrl pressed:', ctrlPressed);
+    handleMultiSelect(feature, ctrlPressed);
+  }, [handleMultiSelect]);
 
   // Handle measurement selection
   const handleMeasurementClick = useCallback((feature: Feature) => {
@@ -528,20 +595,23 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }),
       });
 
-      // Add click event for feature selection
+      // Add click event for feature selection with Ctrl key support
       map.on('click', (event) => {
+        const ctrlPressed = event.originalEvent.ctrlKey || event.originalEvent.metaKey;
+        
         const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => {
           return feature instanceof Feature ? feature : null;
         });
         
         if (feature) {
           if (feature.get('blockData')) {
-            handleBlockClick(feature);
+            event.preventDefault();
+            handleBlockClick(feature, ctrlPressed);
           } else if (feature.get('measurementData')) {
             handleMeasurementClick(feature);
           }
-        } else {
-          // Clicked on empty area, clear selection
+        } else if (!ctrlPressed) {
+          // Only clear selection if Ctrl is not pressed
           clearAllSelections();
         }
       });
@@ -934,116 +1004,57 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
   }, [centerCoordinates, boundingBox]);
 
-  // Quick Edit Panel - Block
-  const editPanel = editingBlock && selectedFeature && (
-    <div className="absolute top-4 right-4 z-50">
+  // Multi-selection summary panel
+  const multiSelectPanel = selectedBlocks.size > 0 && (
+    <div className="absolute bottom-4 left-4 z-50">
       <Card className="w-80 bg-white shadow-lg border">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Edit2 className="w-5 h-5" />
-            Edição Rápida - Bloco
+            <CheckSquare className="w-5 h-5 text-green-600" />
+            Blocos Selecionados ({selectedBlocks.size})
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="quick-edit-name">Nome do Bloco</Label>
-            <Input
-              id="quick-edit-name"
-              value={editForm.name}
-              onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-              placeholder="Digite o nome do bloco"
-            />
+          <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+            <div className="text-center">
+              <p className="text-sm text-green-700 mb-1">Área Total Selecionada</p>
+              <p className="text-2xl font-bold text-green-900">
+                {totalSelectedArea.toFixed(4)} acres
+              </p>
+            </div>
           </div>
           
-          <div>
-            <Label htmlFor="quick-edit-color">Cor do Bloco</Label>
-            <UISelect 
-              value={editForm.color} 
-              onValueChange={(value) => setEditForm({...editForm, color: value})}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-white border shadow-lg z-50">
-                {colorOptions.map((color) => (
-                  <SelectItem key={color.value} value={color.value}>
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-4 h-4 rounded-full border border-gray-300"
-                        style={{ backgroundColor: color.value }}
-                      />
-                      <div>
-                        <span className="font-medium">{color.label}</span>
-                        <span className="text-xs text-gray-500 ml-2">{color.name}</span>
-                      </div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </UISelect>
-          </div>
-
-          <div>
-            <Label htmlFor="transparency-slider">
-              Transparência: {Math.round((1 - editForm.transparency) * 100)}%
-            </Label>
-            <Slider
-              id="transparency-slider"
-              value={[editForm.transparency]}
-              onValueChange={(value) => setEditForm({...editForm, transparency: value[0]})}
-              max={1}
-              min={0}
-              step={0.01}
-              className="w-full mt-2"
-            />
-          </div>
-
-          {/* Display block metrics - only acres */}
-          {editingBlock && (
-            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-              <h4 className="font-medium text-green-900 mb-2">Dados do Bloco</h4>
-              <div className="grid grid-cols-1 gap-2 text-sm">
-                <div>
-                  <span className="text-green-700">ID:</span>
-                  <p className="font-medium text-xs">{selectedFeature.get('blockId')}</p>
+          <div className="space-y-2 max-h-32 overflow-y-auto">
+            {Array.from(selectedBlocks).map(blockId => {
+              const feature = findFeatureByBlockId(blockId);
+              const blockData = feature?.get('blockData');
+              return (
+                <div key={blockId} className="flex justify-between items-center p-2 bg-gray-50 rounded text-sm">
+                  <span className="font-medium truncate flex-1">
+                    {blockData?.nome || 'Sem nome'}
+                  </span>
+                  <span className="text-gray-600 ml-2">
+                    {blockData?.area_acres?.toFixed(4) || 0} acres
+                  </span>
                 </div>
-                <div>
-                  <span className="text-green-700">Área:</span>
-                  <p className="font-medium">{editingBlock.area_acres?.toFixed(4) || 0} acres</p>
-                </div>
-              </div>
-            </div>
-          )}
+              );
+            })}
+          </div>
           
           <div className="flex gap-2 pt-2">
             <Button 
-              onClick={handleSaveEdit}
-              className="flex-1 bg-green-600 hover:bg-green-700"
-              size="sm"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Salvar
-            </Button>
-            <Button 
-              onClick={handleDeleteEdit}
-              variant="destructive"
+              onClick={clearAllSelections}
+              variant="outline"
               size="sm"
               className="flex-1"
             >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Deletar
-            </Button>
-            <Button 
-              onClick={handleCancelEdit}
-              variant="outline"
-              size="sm"
-            >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 mr-2" />
+              Limpar Seleção
             </Button>
           </div>
 
           <div className="text-xs text-gray-500 pt-2">
-            <strong>Dica:</strong> Clique em qualquer bloco no mapa para editar rapidamente seu nome e cor.
+            <strong>Dica:</strong> Mantenha Ctrl pressionado e clique nos blocos para seleção múltipla.
           </div>
         </CardContent>
       </Card>
@@ -1092,7 +1103,121 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }}
       />
       
-      {editPanel}
+      {multiSelectPanel}
+
+      {/* Quick Edit Panel - Block */}
+      <div className="absolute top-4 right-4 z-50">
+        <Card className="w-80 bg-white shadow-lg border">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Edit2 className="w-5 h-5" />
+              Edição Rápida - Bloco
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="quick-edit-name">Nome do Bloco</Label>
+              <Input
+                id="quick-edit-name"
+                value={editForm.name}
+                onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                placeholder="Digite o nome do bloco"
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="quick-edit-color">Cor do Bloco</Label>
+              <UISelect 
+                value={editForm.color} 
+                onValueChange={(value) => setEditForm({...editForm, color: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white border shadow-lg z-50">
+                  {colorOptions.map((color) => (
+                    <SelectItem key={color.value} value={color.value}>
+                      <div className="flex items-center gap-3">
+                        <div 
+                          className="w-4 h-4 rounded-full border border-gray-300"
+                          style={{ backgroundColor: color.value }}
+                        />
+                        <div>
+                          <span className="font-medium">{color.label}</span>
+                          <span className="text-xs text-gray-500 ml-2">{color.name}</span>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </UISelect>
+            </div>
+
+            <div>
+              <Label htmlFor="transparency-slider">
+                Transparência: {Math.round((1 - editForm.transparency) * 100)}%
+              </Label>
+              <Slider
+                id="transparency-slider"
+                value={[editForm.transparency]}
+                onValueChange={(value) => setEditForm({...editForm, transparency: value[0]})}
+                max={1}
+                min={0}
+                step={0.01}
+                className="w-full mt-2"
+              />
+            </div>
+
+            {/* Display block metrics - only acres */}
+            {editingBlock && (
+              <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                <h4 className="font-medium text-green-900 mb-2">Dados do Bloco</h4>
+                <div className="grid grid-cols-1 gap-2 text-sm">
+                  <div>
+                    <span className="text-green-700">ID:</span>
+                    <p className="font-medium text-xs">{selectedFeature.get('blockId')}</p>
+                  </div>
+                  <div>
+                    <span className="text-green-700">Área:</span>
+                    <p className="font-medium">{editingBlock.area_acres?.toFixed(4) || 0} acres</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex gap-2 pt-2">
+              <Button 
+                onClick={handleSaveEdit}
+                className="flex-1 bg-green-600 hover:bg-green-700"
+                size="sm"
+              >
+                <Save className="w-4 h-4 mr-2" />
+                Salvar
+              </Button>
+              <Button 
+                onClick={handleDeleteEdit}
+                variant="destructive"
+                size="sm"
+                className="flex-1"
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Deletar
+              </Button>
+              <Button 
+                onClick={handleCancelEdit}
+                variant="outline"
+                size="sm"
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="text-xs text-gray-500 pt-2">
+              <strong>Dica:</strong> Clique em qualquer bloco no mapa para editar rapidamente seu nome e cor.
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Quick Edit Panel - Measurement */}
       {editingMeasurement && (
