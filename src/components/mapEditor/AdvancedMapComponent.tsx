@@ -8,15 +8,14 @@ import VectorSource from 'ol/source/Vector';
 import { Draw, Modify, Snap, Select } from 'ol/interaction';
 import { Fill, Stroke, Style, Text } from 'ol/style';
 import { Polygon, LineString } from 'ol/geom';
-import { getLength } from 'ol/sphere';
+import { getArea, getLength } from 'ol/sphere';
 import { Feature } from 'ol';
 import { fromLonLat, toLonLat } from 'ol/proj';
 import { boundingExtent } from 'ol/extent';
 import * as turf from '@turf/turf';
+import GeoJSON from 'ol/format/GeoJSON';
 import { unByKey } from 'ol/Observable';
 import Overlay from 'ol/Overlay';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { CheckSquare } from 'lucide-react';
 import 'ol/ol.css';
 
 interface BlockData {
