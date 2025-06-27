@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
@@ -30,7 +31,7 @@ const MapEditor: React.FC = () => {
   const [showNDVI, setShowNDVI] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#10B981');
   const [transparency, setTransparency] = useState(0.4);
-  const [drawingMode, setDrawingMode] = useState<'polygon' | 'edit' | 'delete' | 'multiselect' | null>(null);
+  const [drawingMode, setDrawingMode] = useState<'polygon' | 'edit' | 'delete' | null>(null);
   
   // Estados de localização
   const [centerCoordinates, setCenterCoordinates] = useState<[number, number] | undefined>();

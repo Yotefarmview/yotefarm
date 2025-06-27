@@ -52,12 +52,22 @@ const Sidebar: React.FC<SidebarProps> = ({
     ease: "easeInOut"
   }} className="bg-white border-r border-gray-200 h-screen flex flex-col shadow-lg">
       {/* Header */}
-      <div className="border-b border-gray-200">
-        <img 
-          alt="YOTE Farmview Logo" 
-          className="w-full h-auto object-contain" 
-          src="/lovable-uploads/22da34ca-0e97-49cc-b675-f0a59139489a.png" 
-        />
+      <div className="p-4 border-b border-gray-200">
+        <div className="flex items-center gap-4">
+          <div className="w-8 h-8 flex items-center justify-center">
+            <img alt="YOTE Farmview Logo" className="w-8 h-8 object-contain" src="/lovable-uploads/b665937a-ef24-4b59-a9dd-fcffc546d4c9.png" />
+          </div>
+          {!isCollapsed && <motion.div initial={{
+          opacity: 0
+        }} animate={{
+          opacity: 1
+        }} transition={{
+          delay: 0.2
+        }} className="ml-3">
+              <h1 className="font-bold text-gray-800 text-xl">{t('app.title')}</h1>
+              <p className="text-base text-gray-500">{t('app.subtitle')}</p>
+            </motion.div>}
+        </div>
       </div>
 
       {/* Navigation */}
