@@ -759,7 +759,25 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       currentSnap.current = snap;
 
     } else if (drawingMode === 'edit') {
-      // Edit mode - use native OpenLayers interactions
+      // Edit mode - Clear all interactions first to prevent conflicts
+      if (currentDraw.current) {
+        map.removeInteraction(currentDraw.current);
+        currentDraw.current = null;
+      }
+      if (currentModify.current) {
+        map.removeInteraction(currentModify.current);
+        currentModify.current = null;
+      }
+      if (currentSelect.current) {
+        map.removeInteraction(currentSelect.current);
+        currentSelect.current = null;
+      }
+      if (currentSnap.current) {
+        map.removeInteraction(currentSnap.current);
+        currentSnap.current = null;
+      }
+
+      // Enable edit mode with proper cleanup
       const select = new Select({
         style: (feature) => {
           if (!(feature instanceof Feature)) return undefined;
@@ -829,11 +847,32 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         });
       });
 
-      // Add double-click to exit edit mode
+      // Add double-click to exit edit mode - with proper event handling
       const dblClickListener = map.on('dblclick', (event) => {
         event.preventDefault();
         event.stopPropagation();
         console.log('Double click detected - exiting edit mode');
+        
+        // Clear all OpenLayers interactions immediately
+        if (select) {
+          map.removeInteraction(select);
+        }
+        if (modify) {
+          map.removeInteraction(modify);
+        }
+        
+        // Force reset the map's interaction state
+        map.getInteractions().forEach(interaction => {
+          if (interaction instanceof Select || interaction instanceof Modify) {
+            map.removeInteraction(interaction);
+          }
+        });
+        
+        // Clear internal state
+        currentSelect.current = null;
+        currentModify.current = null;
+        
+        // Exit edit mode completely
         exitEditMode();
       });
 
@@ -926,7 +965,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       });
 
       map.addInteraction(draw);
-      setCurrentDraw(draw);
+      currentDraw.current = draw;
 
     } else if (drawingMode === 'delete') {
       // Delete mode
@@ -962,7 +1001,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       });
 
       map.addInteraction(select);
-      setCurrentSelect(select);
+      currentSelect.current = select;
     }
 
     console.log('Interactions setup complete for mode:', drawingMode);
