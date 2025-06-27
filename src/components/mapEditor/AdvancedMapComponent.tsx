@@ -93,6 +93,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const currentSelect = useRef<Select | null>(null);
   const currentSnap = useRef<Snap | null>(null);
   const globalClickListener = useRef<any>(null);
+  const keyboardListener = useRef<any>(null);
   
   const [editingBlock, setEditingBlock] = useState<any>(null);
   const [editForm, setEditForm] = useState({ name: '', color: '#10B981', transparency: 0.4 });
@@ -508,6 +509,25 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     return Math.round(lengthInFt * 100) / 100 + ' ft';
   }, []);
 
+  // Handle ESC key press to cancel current operation
+  const handleEscapeKey = useCallback(() => {
+    console.log('ESC key pressed - canceling current operation');
+    
+    if (drawingMode === 'edit') {
+      exitEditMode();
+    } else if (drawingMode === 'polygon' || drawingMode === 'measure' || drawingMode === 'delete') {
+      // Cancel drawing/measuring/delete mode
+      clearAllInteractions();
+      clearAllSelections();
+    }
+    
+    // Cancel any ongoing measurement editing
+    if (editingMeasurement) {
+      setEditingMeasurement(null);
+      setMeasurementForm({ name: '', isDrain: false });
+    }
+  }, [drawingMode, editingMeasurement, exitEditMode, clearAllInteractions, clearAllSelections]);
+
   // Inicializar mapa - uma única vez
   useEffect(() => {
     if (!mapRef.current || mapInstance.current) return;
@@ -602,6 +622,18 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }
       });
 
+      // Add keyboard event listener for ESC key
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          handleEscapeKey();
+        }
+      };
+
+      // Add keyboard listener to document
+      document.addEventListener('keydown', handleKeyDown);
+      keyboardListener.current = handleKeyDown;
+
       mapInstance.current = map;
 
       // Aguardar renderização completa
@@ -613,6 +645,12 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       console.log('Mapa criado com sucesso');
 
       return () => {
+        // Remove keyboard listener
+        if (keyboardListener.current) {
+          document.removeEventListener('keydown', keyboardListener.current);
+          keyboardListener.current = null;
+        }
+        
         if (mapInstance.current) {
           mapInstance.current.setTarget(undefined);
           mapInstance.current = null;
@@ -624,7 +662,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     } catch (error) {
       console.error('Erro ao inicializar mapa:', error);
     }
-  }, []);
+  }, [handleEscapeKey, handleBlockClick, handleMeasurementClick, clearAllSelections]);
 
   // Carregar blocos existentes
   useEffect(() => {
@@ -1158,7 +1196,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           </div>
 
           <div className="text-xs text-gray-500 pt-2">
-            <strong>Dica:</strong> Clique em qualquer bloco no mapa para editar rapidamente seu nome e cor.
+            <strong>Dicas:</strong> Clique em qualquer bloco para editar. Pressione <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">ESC</kbd> para cancelar ou dê duplo-clique no mapa.
           </div>
         </CardContent>
       </Card>
@@ -1284,7 +1322,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
               </div>
 
               <div className="text-xs text-gray-500 pt-2">
-                <strong>Dica:</strong> Clique em qualquer medição no mapa para editar rapidamente.
+                <strong>Dicas:</strong> Clique em qualquer medição para editar. Pressione <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">ESC</kbd> para cancelar.
               </div>
             </CardContent>
           </Card>
