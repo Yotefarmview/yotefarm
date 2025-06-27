@@ -844,89 +844,101 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       globalClickListener.current = dblClickListener;
 
     } else if (drawingMode === 'measure') {
-      // Modo medição - linhas retas
-      const draw = new Draw({
-        source: measurementSource.current!,
-        type: 'LineString',
-        style: new Style({
-          stroke: new Stroke({
-            color: '#FF6B35',
-            width: 3,
+      console.log('Iniciando modo de medição...');
+      
+      // Prevent map from scrolling/dragging during measurement
+      try {
+        // Modo medição - linhas retas
+        const draw = new Draw({
+          source: measurementSource.current!,
+          type: 'LineString',
+          style: new Style({
+            stroke: new Stroke({
+              color: '#FF6B35',
+              width: 3,
+            }),
           }),
-        }),
-      });
-
-      createMeasureTooltip();
-
-      let sketch: Feature | null = null;
-      let listener: any = null;
-
-      draw.on('drawstart', (event) => {
-        sketch = event.feature;
-        
-        listener = sketch?.getGeometry()?.on('change', (evt) => {
-          const geom = evt.target as LineString;
-          const tooltipCoord = geom.getLastCoordinate();
-          
-          if (measureTooltipElement.current && measureTooltip.current) {
-            measureTooltipElement.current.innerHTML = formatLength(geom);
-            measureTooltip.current.setPosition(tooltipCoord);
-          }
         });
-      });
 
-      draw.on('drawend', (event) => {
-        const feature = event.feature;
-        const geometry = feature.getGeometry() as LineString;
-        
-        // Clear the tooltip
-        if (measureTooltipElement.current) {
-          measureTooltipElement.current.className = 'ol-tooltip ol-tooltip-static';
-        }
-        
-        // Unregister the sketch listener
-        if (listener) {
-          unByKey(listener);
-        }
-        
-        if (geometry) {
-          const coordinates = geometry.getCoordinates().map(coord => toLonLat(coord));
-          const distance = getLength(geometry);
+        createMeasureTooltip();
+
+        let sketch: Feature | null = null;
+        let listener: any = null;
+
+        draw.on('drawstart', (event) => {
+          console.log('Measurement drawing started');
+          sketch = event.feature;
           
-          const measurementData: MeasurementData = {
-            id: `measure_${Date.now()}`,
-            name: `Medição ${measurements.length + 1}`,
-            distance,
-            coordinates,
-            isDrain: false
-          };
-
-          // Set properties for this new feature
-          feature.set('measurementId', measurementData.id);
-          feature.set('measurementData', measurementData);
-          feature.setStyle(createMeasurementStyle(measurementData));
-
-          // Add to measurements array
-          setMeasurements(prev => [...prev, measurementData]);
-
-          // Open edit form
-          setEditingMeasurement(measurementData);
-          setMeasurementForm({
-            name: measurementData.name,
-            isDrain: false
+          listener = sketch?.getGeometry()?.on('change', (evt) => {
+            const geom = evt.target as LineString;
+            const tooltipCoord = geom.getLastCoordinate();
+            
+            if (measureTooltipElement.current && measureTooltip.current) {
+              measureTooltipElement.current.innerHTML = formatLength(geom);
+              measureTooltip.current.setPosition(tooltipCoord);
+            }
           });
+        });
 
-          console.log('New measurement created:', measurementData);
-        }
+        draw.on('drawend', (event) => {
+          console.log('Measurement drawing ended');
+          const feature = event.feature;
+          const geometry = feature.getGeometry() as LineString;
+          
+          // Clear the tooltip
+          if (measureTooltipElement.current) {
+            measureTooltipElement.current.className = 'ol-tooltip ol-tooltip-static';
+          }
+          
+          // Unregister the sketch listener
+          if (listener) {
+            unByKey(listener);
+          }
+          
+          if (geometry) {
+            const coordinates = geometry.getCoordinates().map(coord => toLonLat(coord));
+            const distance = getLength(geometry);
+            
+            const measurementData: MeasurementData = {
+              id: `measure_${Date.now()}`,
+              name: `Medição ${measurements.length + 1}`,
+              distance,
+              coordinates,
+              isDrain: false
+            };
 
-        // Create new tooltip for next measurement
-        setTimeout(() => {
-          createMeasureTooltip();
-        }, 100);
-      });
+            // Set properties for this new feature
+            feature.set('measurementId', measurementData.id);
+            feature.set('measurementData', measurementData);
+            feature.setStyle(createMeasurementStyle(measurementData));
 
-      map.addInteraction(draw);
-      setCurrentDraw(draw);
+            // Add to measurements array
+            setMeasurements(prev => [...prev, measurementData]);
+
+            // Open edit form
+            setEditingMeasurement(measurementData);
+            setMeasurementForm({
+              name: measurementData.name,
+              isDrain: false
+            });
+
+            console.log('New measurement created:', measurementData);
+          }
+
+          // Create new tooltip for next measurement
+          setTimeout(() => {
+            createMeasureTooltip();
+          }, 100);
+        });
+
+        map.addInteraction(draw);
+        currentDraw.current = draw;
+        
+        console.log('Measurement mode setup complete');
+
+      } catch (error) {
+        console.error('Erro ao configurar modo de medição:', error);
+      }
 
     } else if (drawingMode === 'delete') {
       // Delete mode
@@ -962,7 +974,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       });
 
       map.addInteraction(select);
-      setCurrentSelect(select);
+      currentSelect.current = select;
     }
 
     console.log('Interactions setup complete for mode:', drawingMode);
@@ -1000,6 +1012,28 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       });
     }
   }, [centerCoordinates, boundingBox]);
+
+  // Update all existing blocks when global transparency changes
+  useEffect(() => {
+    if (!vectorSource.current || !mapReady) return;
+
+    console.log('Updating transparency for all blocks:', transparency);
+    
+    vectorSource.current.getFeatures().forEach(feature => {
+      const blockData = feature.get('blockData');
+      // Only update blocks that don't have their own custom transparency
+      if (blockData && blockData.transparencia === undefined) {
+        updateFeatureStyle(
+          feature,
+          blockData.nome || feature.get('name') || '',
+          blockData.cor || feature.get('color') || selectedColor,
+          transparency, // Use global transparency
+          blockData.area_acres,
+          feature.get('isSelected') || false
+        );
+      }
+    });
+  }, [transparency, selectedColor, mapReady, updateFeatureStyle]);
 
   // Quick Edit Panel - Block
   const editPanel = editingBlock && selectedFeature && drawingMode === 'edit' && (
@@ -1125,28 +1159,6 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       </Card>
     </div>
   );
-
-  // Update all existing blocks when global transparency changes
-  useEffect(() => {
-    if (!vectorSource.current || !mapReady) return;
-
-    console.log('Updating transparency for all blocks:', transparency);
-    
-    vectorSource.current.getFeatures().forEach(feature => {
-      const blockData = feature.get('blockData');
-      // Only update blocks that don't have their own custom transparency
-      if (blockData && blockData.transparencia === undefined) {
-        updateFeatureStyle(
-          feature,
-          blockData.nome || feature.get('name') || '',
-          blockData.cor || feature.get('color') || selectedColor,
-          transparency, // Use global transparency
-          blockData.area_acres,
-          feature.get('isSelected') || false
-        );
-      }
-    });
-  }, [transparency, selectedColor, mapReady, updateFeatureStyle]);
 
   return (
     <div className="relative w-full h-full">
