@@ -86,9 +86,14 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const measurementSource = useRef<VectorSource | null>(null);
   const measureTooltipElement = useRef<HTMLDivElement | null>(null);
   const measureTooltip = useRef<any>(null);
-  const [currentDraw, setCurrentDraw] = useState<Draw | null>(null);
-  const [currentModify, setCurrentModify] = useState<Modify | null>(null);
-  const [currentSelect, setCurrentSelect] = useState<Select | null>(null);
+  
+  // Interaction refs - important to track all interactions properly
+  const currentDraw = useRef<Draw | null>(null);
+  const currentModify = useRef<Modify | null>(null);
+  const currentSelect = useRef<Select | null>(null);
+  const currentSnap = useRef<Snap | null>(null);
+  const globalClickListener = useRef<any>(null);
+  
   const [editingBlock, setEditingBlock] = useState<any>(null);
   const [editForm, setEditForm] = useState({ name: '', color: '#10B981', transparency: 0.4 });
   const [mapReady, setMapReady] = useState(false);
@@ -214,9 +219,45 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     console.log(`Updated feature style - ID: ${feature.get('blockId')}, Name: ${name}, Color: ${color}, Transparency: ${transparency}, Selected: ${isSelected}`);
   }, [createBlockStyle]);
 
-  // Clear all selections
+  // Clear ALL interactions properly
+  const clearAllInteractions = useCallback(() => {
+    if (!mapInstance.current) return;
+
+    console.log('Clearing all interactions...');
+    const map = mapInstance.current;
+
+    // Remove all current interactions
+    if (currentDraw.current) {
+      map.removeInteraction(currentDraw.current);
+      currentDraw.current = null;
+    }
+    if (currentModify.current) {
+      map.removeInteraction(currentModify.current);
+      currentModify.current = null;
+    }
+    if (currentSelect.current) {
+      map.removeInteraction(currentSelect.current);
+      currentSelect.current = null;
+    }
+    if (currentSnap.current) {
+      map.removeInteraction(currentSnap.current);
+      currentSnap.current = null;
+    }
+
+    // Remove global click listener
+    if (globalClickListener.current) {
+      unByKey(globalClickListener.current);
+      globalClickListener.current = null;
+    }
+
+    console.log('All interactions cleared');
+  }, []);
+
+  // Clear all selections and reset state
   const clearAllSelections = useCallback(() => {
     if (!vectorSource.current) return;
+    
+    console.log('Clearing all selections...');
     
     vectorSource.current.getFeatures().forEach(feature => {
       const blockData = feature.get('blockData');
@@ -235,20 +276,35 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     setEditForm({ name: '', color: '#10B981', transparency: 0.4 });
     setEditingMeasurement(null);
     setMeasurementForm({ name: '', isDrain: false });
+    
+    console.log('All selections cleared');
   }, [updateFeatureStyle, transparency]);
 
-  // Handle block selection for editing
-  const handleBlockClick = useCallback((feature: Feature) => {
-    console.log('Block clicked:', feature.get('blockId'));
+  // Exit edit mode completely
+  const exitEditMode = useCallback(() => {
+    console.log('Exiting edit mode...');
+    clearAllInteractions();
+    clearAllSelections();
     
-    // Clear previous selections
+    // Force map to refresh
+    if (mapInstance.current) {
+      mapInstance.current.getView().changed();
+    }
+  }, [clearAllInteractions, clearAllSelections]);
+
+  // Handle block selection for editing - only when in edit mode
+  const handleBlockClick = useCallback((feature: Feature) => {
+    if (drawingMode !== 'edit') return;
+    
+    console.log('Block clicked in edit mode:', feature.get('blockId'));
+    
+    // Clear previous selections first
     clearAllSelections();
     
     const blockData = feature.get('blockData');
     const blockId = feature.get('blockId');
     
     if (blockData && blockId) {
-      // Set this feature as selected
       setSelectedFeature(feature);
       setEditingBlock(blockData);
       setEditForm({
@@ -270,7 +326,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       onBlockSelect(blockData);
       console.log('Block selected for editing:', blockId, blockData.nome);
     }
-  }, [clearAllSelections, updateFeatureStyle, onBlockSelect]);
+  }, [drawingMode, clearAllSelections, updateFeatureStyle, onBlockSelect]);
 
   // Handle measurement selection
   const handleMeasurementClick = useCallback((feature: Feature) => {
@@ -651,22 +707,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
     const map = mapInstance.current;
 
-    // Remover interações existentes
-    if (currentDraw) {
-      map.removeInteraction(currentDraw);
-      setCurrentDraw(null);
-    }
-    if (currentModify) {
-      map.removeInteraction(currentModify);
-      setCurrentModify(null);
-    }
-    if (currentSelect) {
-      map.removeInteraction(currentSelect);
-      setCurrentSelect(null);
-    }
+    // Always clear existing interactions first
+    clearAllInteractions();
 
     if (drawingMode === 'polygon') {
-      // Modo desenho - polígonos livres com pontos ilimitados
+      // Drawing mode
       const draw = new Draw({
         source: vectorSource.current,
         type: 'Polygon',
@@ -704,14 +749,99 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           feature.set('isSelected', false);
 
           console.log('New block drawn:', uniqueId, blockData.name);
-
           onPolygonDrawn(blockData);
         }
       });
 
       map.addInteraction(draw);
       map.addInteraction(snap);
-      setCurrentDraw(draw);
+      currentDraw.current = draw;
+      currentSnap.current = snap;
+
+    } else if (drawingMode === 'edit') {
+      // Edit mode - use native OpenLayers interactions
+      const select = new Select({
+        style: (feature) => {
+          if (!(feature instanceof Feature)) return undefined;
+          const blockData = feature.get('blockData');
+          return createBlockStyle(
+            blockData?.cor || feature.get('color') || selectedColor,
+            blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
+            blockData?.nome || feature.get('name'),
+            blockData?.area_acres,
+            true // Always show as selected in edit mode
+          );
+        }
+      });
+      
+      const modify = new Modify({
+        features: select.getFeatures(),
+      });
+
+      // Handle selection
+      select.on('select', (event) => {
+        const selectedFeatures = event.selected;
+        if (selectedFeatures.length > 0) {
+          const feature = selectedFeatures[0];
+          if (feature instanceof Feature && feature.get('blockData')) {
+            handleBlockClick(feature);
+          }
+        }
+      });
+
+      // Handle geometry modification
+      modify.on('modifyend', (event) => {
+        const features = event.features.getArray();
+        features.forEach(feature => {
+          if (!(feature instanceof Feature)) return;
+          
+          const geometry = feature.getGeometry() as Polygon;
+          const coordinates = geometry.getCoordinates()[0].map(coord => toLonLat(coord));
+          coordinates.pop();
+          
+          const metrics = calculatePolygonMetrics(coordinates);
+          const blockId = feature.get('blockId');
+          
+          if (blockId) {
+            const updatedBlockData = {
+              ...feature.get('blockData'),
+              ...metrics
+            };
+            feature.set('blockData', updatedBlockData);
+
+            const blockData = feature.get('blockData');
+            updateFeatureStyle(
+              feature,
+              blockData?.nome || feature.get('name') || '',
+              blockData?.cor || feature.get('color') || selectedColor,
+              blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
+              metrics.area_acres,
+              true // Keep selected during modification
+            );
+
+            onBlockUpdate(blockId, {
+              coordinates,
+              ...metrics
+            });
+            
+            console.log('Block modified:', blockId, metrics);
+          }
+        });
+      });
+
+      // Add double-click to exit edit mode
+      const dblClickListener = map.on('dblclick', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        console.log('Double click detected - exiting edit mode');
+        exitEditMode();
+      });
+
+      map.addInteraction(select);
+      map.addInteraction(modify);
+      currentSelect.current = select;
+      currentModify.current = modify;
+      globalClickListener.current = dblClickListener;
 
     } else if (drawingMode === 'measure') {
       // Modo medição - linhas retas
@@ -798,89 +928,14 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       map.addInteraction(draw);
       setCurrentDraw(draw);
 
-    } else if (drawingMode === 'edit') {
-      // Modo edição
-      const select = new Select({
-        style: (feature) => {
-          if (!(feature instanceof Feature)) return undefined;
-          const blockData = feature.get('blockData');
-          return createBlockStyle(
-            blockData?.cor || feature.get('color') || selectedColor,
-            transparency,
-            blockData?.nome || feature.get('name'),
-            blockData?.area_acres,
-            true
-          );
-        }
-      });
-      
-      const modify = new Modify({
-        features: select.getFeatures(),
-      });
-
-      select.on('select', (event) => {
-        const selectedFeatures = event.selected;
-        if (selectedFeatures.length > 0) {
-          const feature = selectedFeatures[0];
-          if (feature instanceof Feature && feature.get('blockData')) {
-            handleBlockClick(feature);
-          }
-        }
-      });
-
-      modify.on('modifyend', (event) => {
-        const features = event.features.getArray();
-        features.forEach(feature => {
-          if (!(feature instanceof Feature)) return;
-          
-          const geometry = feature.getGeometry() as Polygon;
-          const coordinates = geometry.getCoordinates()[0].map(coord => toLonLat(coord));
-          coordinates.pop(); // Remove o último ponto duplicado
-          
-          const metrics = calculatePolygonMetrics(coordinates);
-          const blockId = feature.get('blockId');
-          
-          if (blockId) {
-            // Update feature properties
-            const updatedBlockData = {
-              ...feature.get('blockData'),
-              ...metrics
-            };
-            feature.set('blockData', updatedBlockData);
-
-            // Update style with new area
-            const blockData = feature.get('blockData');
-            updateFeatureStyle(
-              feature,
-              blockData?.nome || feature.get('name') || '',
-              blockData?.cor || feature.get('color') || selectedColor,
-              metrics.area_acres,
-              feature.get('isSelected') || false
-            );
-
-            onBlockUpdate(blockId, {
-              coordinates,
-              ...metrics
-            });
-            
-            console.log('Block modified:', blockId, metrics);
-          }
-        });
-      });
-
-      map.addInteraction(select);
-      map.addInteraction(modify);
-      setCurrentSelect(select);
-      setCurrentModify(modify);
-
     } else if (drawingMode === 'delete') {
-      // Modo deletar
+      // Delete mode
       const select = new Select({
         style: (feature) => {
           if (!(feature instanceof Feature)) return undefined;
           const blockData = feature.get('blockData');
           return createBlockStyle(
-            '#EF4444', // Vermelho para indicar seleção para deletar
+            '#EF4444',
             0.7,
             blockData?.nome || feature.get('name'),
             blockData?.area_acres
@@ -909,7 +964,19 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       map.addInteraction(select);
       setCurrentSelect(select);
     }
-  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, updateFeatureStyle, createMeasurementStyle, measurements.length, createMeasureTooltip, formatLength]);
+
+    console.log('Interactions setup complete for mode:', drawingMode);
+
+  }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, updateFeatureStyle, createMeasurementStyle, measurements.length, createMeasureTooltip, formatLength, clearAllInteractions, exitEditMode]);
+
+  // Clear interactions when drawing mode becomes null
+  useEffect(() => {
+    if (drawingMode === null) {
+      console.log('Drawing mode is null, clearing all interactions');
+      clearAllInteractions();
+      clearAllSelections();
+    }
+  }, [drawingMode, clearAllInteractions, clearAllSelections]);
 
   // Centralizar mapa em coordenadas específicas
   useEffect(() => {
@@ -935,13 +1002,22 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   }, [centerCoordinates, boundingBox]);
 
   // Quick Edit Panel - Block
-  const editPanel = editingBlock && selectedFeature && (
+  const editPanel = editingBlock && selectedFeature && drawingMode === 'edit' && (
     <div className="absolute top-4 right-4 z-50">
       <Card className="w-80 bg-white shadow-lg border">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Edit2 className="w-5 h-5" />
             Edição Rápida - Bloco
+            <Button
+              onClick={exitEditMode}
+              variant="outline"
+              size="sm"
+              className="ml-auto"
+              title="Sair do modo de edição (ou dê duplo-clique no mapa)"
+            >
+              <X className="w-4 h-4" />
+            </Button>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -1034,7 +1110,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
               Deletar
             </Button>
             <Button 
-              onClick={handleCancelEdit}
+              onClick={exitEditMode}
               variant="outline"
               size="sm"
             >
