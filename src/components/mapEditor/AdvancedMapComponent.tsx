@@ -527,32 +527,23 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       // Calculate the middle point horizontally
       const midX = (bbox[0] + bbox[2]) / 2;
       
-      // Create a vertical line through the middle to split the polygon
-      const splitLine = turf.lineString([
-        [midX, bbox[1] - 0.01], // Start below the polygon
-        [midX, bbox[3] + 0.01]  // End above the polygon
-      ]);
+      // Create bounding boxes for left and right halves
+      const leftBbox: [number, number, number, number] = [bbox[0] - 0.01, bbox[1] - 0.01, midX, bbox[3] + 0.01];
+      const rightBbox: [number, number, number, number] = [midX, bbox[1] - 0.01, bbox[2] + 0.01, bbox[3] + 0.01];
 
-      // Create a buffer around the line to create splitting polygons
-      const leftBounds = turf.polygon([[
-        [bbox[0] - 0.01, bbox[1] - 0.01],
-        [midX, bbox[1] - 0.01],
-        [midX, bbox[3] + 0.01],
-        [bbox[0] - 0.01, bbox[3] + 0.01],
-        [bbox[0] - 0.01, bbox[1] - 0.01]
-      ]]);
-
-      const rightBounds = turf.polygon([[
-        [midX, bbox[1] - 0.01],
-        [bbox[2] + 0.01, bbox[1] - 0.01],
-        [bbox[2] + 0.01, bbox[3] + 0.01],
-        [midX, bbox[3] + 0.01],
-        [midX, bbox[1] - 0.01]
-      ]]);
+      // Create polygons from bounding boxes
+      const leftBounds = turf.bboxPolygon(leftBbox);
+      const rightBounds = turf.bboxPolygon(rightBbox);
       
       // Intersect the original polygon with each half
-      const leftIntersection = turf.intersect(polygon, leftBounds);
-      const rightIntersection = turf.intersect(polygon, rightBounds);
+      const leftIntersection = turf.intersect(
+        turf.featureCollection([polygon]), 
+        turf.featureCollection([leftBounds])
+      );
+      const rightIntersection = turf.intersect(
+        turf.featureCollection([polygon]), 
+        turf.featureCollection([rightBounds])
+      );
       
       if (leftIntersection && rightIntersection && 
           leftIntersection.geometry && rightIntersection.geometry &&
