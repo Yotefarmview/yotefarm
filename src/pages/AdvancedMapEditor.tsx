@@ -81,15 +81,15 @@ const AdvancedMapEditor: React.FC = () => {
 
   // Color options for blocks
   const colorOptions = [
-    { value: '#10B981', label: 'Verde', name: 'Plantado' },
-    { value: '#F59E0B', label: 'Amarelo', name: 'Maduro' },
-    { value: '#EF4444', label: 'Vermelho', name: 'Problemas' },
-    { value: '#F97316', label: 'Laranja', name: 'Colhendo' },
-    { value: '#8B5CF6', label: 'Roxo', name: 'Aplicação' },
-    { value: '#FFFFFF', label: 'Branco', name: 'Vazio' },
-    { value: '#3B82F6', label: 'Azul', name: 'Irrigação' },
-    { value: '#EC4899', label: 'Rosa', name: 'Teste' },
-    { value: '#06B6D4', label: 'Turquesa', name: 'Dreno' }
+    { value: '#10B981', label: 'Green', name: 'Planted' },
+    { value: '#F59E0B', label: 'Yellow', name: 'Mature' },
+    { value: '#EF4444', label: 'Red', name: 'Problems' },
+    { value: '#F97316', label: 'Orange', name: 'Harvesting' },
+    { value: '#8B5CF6', label: 'Purple', name: 'Application' },
+    { value: '#FFFFFF', label: 'White', name: 'Empty' },
+    { value: '#3B82F6', label: 'Blue', name: 'Irrigation' },
+    { value: '#EC4899', label: 'Pink', name: 'Test' },
+    { value: '#06B6D4', label: 'Turquoise', name: 'Drain' }
   ];
 
   // Add new state for shapefile importer
@@ -774,7 +774,7 @@ const AdvancedMapEditor: React.FC = () => {
       // .shp - arquivo principal (geometria binária)
       const shpContent = new Uint8Array([
         0x00, 0x00, 0x27, 0x0A, // File code
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
         0x00, 0x00, 0x00, 0x32, // File length
         0x00, 0x00, 0x03, 0xE8, // Version
         0x00, 0x00, 0x00, 0x05  // Shape type (Polygon)
@@ -783,7 +783,7 @@ const AdvancedMapEditor: React.FC = () => {
       // .shx - arquivo de índice
       const shxContent = new Uint8Array([
         0x00, 0x00, 0x27, 0x0A, // File code
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x32, // File length
         0x00, 0x00, 0x03, 0xE8, // Version
         0x00, 0x00, 0x00, 0x05  // Shape type
@@ -1074,393 +1074,163 @@ CAMPOS DOS DADOS:
         </div>
       </motion.div>
 
-      <div className="flex max-w-screen-2xl mx-auto">
-        {/* Map Area - 75% */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="w-3/4 p-4"
-        >
-          <Card className="h-[calc(100vh-120px)]">
-            <CardHeader className="pb-3">
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Navigation className="w-5 h-5" />
-                    Mapa Interativo
-                  </CardTitle>
-                  
-                  {/* Farm Selector - Responsive */}
-                  <div className="min-w-[200px] max-w-[300px]">
-                    <Select value={selectedFarmId} onValueChange={handleFarmChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione uma fazenda" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border shadow-lg z-50">
-                        {farms.map((farm) => (
-                          <SelectItem key={farm.id} value={farm.id}>
-                            {farm.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+      {/* Full Width Map Area */}
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="w-full p-4 max-w-screen-2xl mx-auto"
+      >
+        <Card className="h-[calc(100vh-120px)]">
+          <CardHeader className="pb-3">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Navigation className="w-5 h-5" />
+                  Mapa Interativo
+                </CardTitle>
                 
-                {/* Map Controls - Responsive Grid */}
-                <div className="flex flex-wrap items-center gap-2 justify-between">
-                  {/* View Controls */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      variant={showSatellite ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setShowSatellite(!showSatellite)}
-                      className="text-xs px-2 py-1 h-8 min-w-[70px]"
-                    >
-                      <Layers className="w-3 h-3 mr-1" />
-                      {showSatellite ? 'Satélite' : 'Padrão'}
-                    </Button>
-                    
-                    <Button
-                      variant={printMode ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setPrintMode(!printMode)}
-                      className="text-xs px-2 py-1 h-8 min-w-[70px] whitespace-nowrap"
-                    >
-                      Modo Impressão
-                    </Button>
-                  </div>
-                  
-                  {/* Drawing Tools */}
-                  <div className="flex flex-wrap items-center gap-1">
-                    <Button
-                      variant={drawingMode === 'polygon' ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setDrawingMode(drawingMode === 'polygon' ? null : 'polygon')}
-                      className="text-xs px-2 py-1 h-8 min-w-[60px]"
-                    >
-                      Desenhar
-                    </Button>
-                    
-                    <Button
-                      variant={drawingMode === 'measure' ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setDrawingMode(drawingMode === 'measure' ? null : 'measure')}
-                      className="text-xs px-2 py-1 h-8 min-w-[50px]"
-                    >
-                      <Ruler className="w-3 h-3 mr-1" />
-                      Medir
-                    </Button>
-                    
-                    <Button
-                      variant={drawingMode === 'edit' ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setDrawingMode(drawingMode === 'edit' ? null : 'edit')}
-                      className="text-xs px-2 py-1 h-8 min-w-[50px]"
-                    >
-                      Editar
-                    </Button>
-                    
-                    <Button
-                      variant={drawingMode === 'delete' ? "destructive" : "outline"}
-                      size="sm"
-                      onClick={() => setDrawingMode(drawingMode === 'delete' ? null : 'delete')}
-                      className="text-xs px-2 py-1 h-8 min-w-[55px]"
-                    >
-                      Deletar
-                    </Button>
-                  </div>
+                {/* Farm Selector - Responsive */}
+                <div className="min-w-[200px] max-w-[300px]">
+                  <Select value={selectedFarmId} onValueChange={handleFarmChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma fazenda" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border shadow-lg z-50">
+                      {farms.map((farm) => (
+                        <SelectItem key={farm.id} value={farm.id}>
+                          {farm.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               
-              {/* Search Bar */}
-              <LocationSearch
-                onLocationSelect={handleLocationSelect}
-                placeholder="Buscar endereço global (CEP, cidade, coordenadas...)"
-              />
-            </CardHeader>
-            
-            <CardContent className="h-full p-0">
-              <AdvancedMapComponent
-                blocks={blocks}
-                selectedColor={selectedColor}
-                transparency={transparency}
-                showSatellite={showSatellite}
-                showBackground={showBackground}
-                printMode={printMode}
-                showNDVI={showNDVI}
-                drawingMode={drawingMode}
-                onPolygonDrawn={handlePolygonDrawn}
-                onBlockUpdate={handleBlockUpdate}
-                onBlockDelete={handleBlockDelete}
-                onBlockSelect={handleBlockSelect}
-                centerCoordinates={centerCoordinates}
-                boundingBox={boundingBox}
-              />
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Sidebar - 25% */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="w-1/4 p-4 pl-0"
-        >
-          <Card className="h-[calc(100vh-120px)] overflow-y-auto">
-            <CardHeader>
-              <CardTitle className="text-lg">
-                {selectedBlock ? 'Editar Bloco' : 'Dados da Fazenda'}
-              </CardTitle>
-            </CardHeader>
-            
-            <CardContent className="space-y-4">
-              {/* Block Info Display */}
-              {selectedBlock && (
-                <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                  <h4 className="font-medium text-green-900 mb-2">Dados Calculados</h4>
-                  <div className="grid grid-cols-1 gap-2 text-sm">
-                    <div>
-                      <span className="text-green-700">Área:</span>
-                      <p className="font-medium">{selectedBlock.area_m2?.toFixed(2)} m²</p>
-                      <p className="font-medium">{formatAcres(selectedBlock.area_acres || 0)}</p>
-                    </div>
-                    <div>
-                      <span className="text-green-700">Perímetro:</span>
-                      <p className="font-medium">{selectedBlock.perimetro?.toFixed(2)} m</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Block Form - Only when editing a block */}
-              {selectedBlock && (
-                <div className="space-y-4">
-                  <Separator />
-                  <h4 className="font-medium text-gray-900">Configurações do Bloco</h4>
-                  
-                  <div>
-                    <Label htmlFor="block_nome">Nome do Bloco</Label>
-                    <Input
-                      id="block_nome"
-                      value={blockFormData.nome}
-                      onChange={(e) => setBlockFormData({...blockFormData, nome: e.target.value})}
-                      placeholder="Ex: Talhão A1, Bloco Norte..."
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="block_cor">Cor do Bloco</Label>
-                    <Select 
-                      value={blockFormData.cor} 
-                      onValueChange={(value) => {
-                        setBlockFormData({...blockFormData, cor: value});
-                        setSelectedColor(value);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border shadow-lg z-50">
-                        {colorOptions.map((color) => (
-                          <SelectItem key={color.value} value={color.value}>
-                            <div className="flex items-center gap-3">
-                              <div 
-                                className="w-4 h-4 rounded-full border border-gray-300"
-                                style={{ backgroundColor: color.value }}
-                              />
-                              <div>
-                                <span className="font-medium">{color.label}</span>
-                                <span className="text-xs text-gray-500 ml-2">{color.name}</span>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Button 
-                    onClick={handleSaveBlock}
-                    className="w-full bg-green-600 hover:bg-green-700"
+              {/* Map Controls - Responsive Grid */}
+              <div className="flex flex-wrap items-center gap-2 justify-between">
+                {/* View Controls */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant={showSatellite ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowSatellite(!showSatellite)}
+                    className="text-xs px-2 py-1 h-8 min-w-[70px]"
                   >
-                    <Save className="w-4 h-4 mr-2" />
-                    Salvar Bloco
+                    <Layers className="w-3 h-3 mr-1" />
+                    {showSatellite ? 'Satélite' : 'Padrão'}
+                  </Button>
+                  
+                  <Button
+                    variant={printMode ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setPrintMode(!printMode)}
+                    className="text-xs px-2 py-1 h-8 min-w-[70px] whitespace-nowrap"
+                  >
+                    Modo Impressão
                   </Button>
                 </div>
-              )}
-
-              {/* Farm Form - Always visible when farm is selected */}
-              {!selectedBlock && selectedFarmId && (
-                <div className="space-y-4">
-                  <h4 className="font-medium text-gray-900">Informações da Fazenda</h4>
-
-                  <div>
-                    <Label htmlFor="tipo_cana">Tipo de Cana</Label>
-                    <Input
-                      id="tipo_cana"
-                      value={farmFormData.tipo_cana}
-                      onChange={(e) => setFarmFormData({...farmFormData, tipo_cana: e.target.value})}
-                      placeholder="SP80-1842, RB92579, etc."
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="data_plantio">Data do Plantio</Label>
-                    <Input
-                      id="data_plantio"
-                      type="date"
-                      value={farmFormData.data_plantio}
-                      onChange={(e) => setFarmFormData({...farmFormData, data_plantio: e.target.value})}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="ultima_aplicacao">Última Aplicação</Label>
-                    <Input
-                      id="ultima_aplicacao"
-                      type="date"
-                      value={farmFormData.ultima_aplicacao}
-                      onChange={(e) => setFarmFormData({...farmFormData, ultima_aplicacao: e.target.value})}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="proxima_colheita">Próxima Colheita</Label>
-                    <Input
-                      id="proxima_colheita"
-                      type="date"
-                      value={farmFormData.proxima_colheita}
-                      onChange={(e) => setFarmFormData({...farmFormData, proxima_colheita: e.target.value})}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="observacoes">Observações</Label>
-                    <Input
-                      id="observacoes"
-                      value={farmFormData.observacoes}
-                      onChange={(e) => setFarmFormData({...farmFormData, observacoes: e.target.value})}
-                      placeholder="Observações gerais sobre a fazenda"
-                    />
-                  </div>
-
-                  <Button 
-                    onClick={handleSaveFarm}
-                    className="w-full bg-green-600 hover:bg-green-700"
+                
+                {/* Drawing Tools */}
+                <div className="flex flex-wrap items-center gap-1">
+                  <Button
+                    variant={drawingMode === 'polygon' ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setDrawingMode(drawingMode === 'polygon' ? null : 'polygon')}
+                    className="text-xs px-2 py-1 h-8 min-w-[60px]"
                   >
-                    <Save className="w-4 h-4 mr-2" />
-                    Salvar Dados da Fazenda
+                    Desenhar
+                  </Button>
+                  
+                  <Button
+                    variant={drawingMode === 'measure' ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setDrawingMode(drawingMode === 'measure' ? null : 'measure')}
+                    className="text-xs px-2 py-1 h-8 min-w-[50px]"
+                  >
+                    <Ruler className="w-3 h-3 mr-1" />
+                    Medir
+                  </Button>
+                  
+                  <Button
+                    variant={drawingMode === 'edit' ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setDrawingMode(drawingMode === 'edit' ? null : 'edit')}
+                    className="text-xs px-2 py-1 h-8 min-w-[50px]"
+                  >
+                    Editar
+                  </Button>
+                  
+                  <Button
+                    variant={drawingMode === 'delete' ? "destructive" : "outline"}
+                    size="sm"
+                    onClick={() => setDrawingMode(drawingMode === 'delete' ? null : 'delete')}
+                    className="text-xs px-2 py-1 h-8 min-w-[55px]"
+                  >
+                    Deletar
                   </Button>
                 </div>
-              )}
 
-              {/* Drawing controls */}
-              {!selectedBlock && (
-                <div className="space-y-4">
-                  <Separator />
-                  <h4 className="font-medium text-gray-900">Novo Bloco</h4>
-                  
-                  <div>
-                    <Label htmlFor="new_block_nome">Nome do Novo Bloco</Label>
-                    <Input
-                      id="new_block_nome"
-                      value={blockFormData.nome}
-                      onChange={(e) => setBlockFormData({...blockFormData, nome: e.target.value})}
-                      placeholder="Ex: Talhão A1, Bloco Norte..."
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="new_block_cor">Cor do Novo Bloco</Label>
-                    <Select 
-                      value={selectedColor} 
-                      onValueChange={(value) => {
-                        setSelectedColor(value);
-                        setBlockFormData({...blockFormData, cor: value});
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border shadow-lg z-50">
-                        {colorOptions.map((color) => (
-                          <SelectItem key={color.value} value={color.value}>
-                            <div className="flex items-center gap-3">
-                              <div 
-                                className="w-4 h-4 rounded-full border border-gray-300"
-                                style={{ backgroundColor: color.value }}
-                              />
-                              <div>
-                                <span className="font-medium">{color.label}</span>
-                                <span className="text-xs text-gray-500 ml-2">{color.name}</span>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="transparencia">Transparência: {Math.round(transparency * 100)}%</Label>
-                    <Slider
-                      value={[transparency]}
-                      onValueChange={(value) => setTransparency(value[0])}
-                      max={1}
-                      min={0.1}
-                      step={0.1}
-                      className="w-full mt-2"
-                    />
-                  </div>
-
-                  <Separator />
-
-                  {/* Advanced Options */}
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="showNDVI"
-                        checked={showNDVI}
-                        onCheckedChange={(checked) => setShowNDVI(!!checked)}
-                      />
-                      <Label htmlFor="showNDVI">Mostrar NDVI</Label>
-                    </div>
-                  </div>
-
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setSelectedBlock(null);
-                      setDrawingMode(null);
-                      resetBlockForm();
+                {/* Color Selector */}
+                <div className="flex items-center gap-2">
+                  <Select 
+                    value={selectedColor} 
+                    onValueChange={(value) => {
+                      setSelectedColor(value);
+                      setBlockFormData({...blockFormData, cor: value});
                     }}
-                    className="w-full"
                   >
-                    Cancelar
-                  </Button>
+                    <SelectTrigger className="w-[120px]">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-4 h-4 rounded-full border border-gray-300"
+                          style={{ backgroundColor: selectedColor }}
+                        />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border shadow-lg z-50">
+                      {colorOptions.map((color) => (
+                        <SelectItem key={color.value} value={color.value}>
+                          <div className="flex items-center gap-3">
+                            <div 
+                              className="w-4 h-4 rounded-full border border-gray-300"
+                              style={{ backgroundColor: color.value }}
+                            />
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
-
-              {/* Instructions */}
-              <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <h4 className="font-medium text-blue-900 mb-2">Instruções:</h4>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• Selecione uma fazenda primeiro</li>
-                  <li>• Use "Desenhar" para criar novos blocos</li>
-                  <li>• Use "Medir" para criar medições lineares</li>
-                  <li>• Clique em blocos/medições existentes para editar</li>
-                  <li>• Use "Modo Impressão" antes de exportar PDF</li>
-                  <li>• Busque por endereços na barra de pesquisa</li>
-                  <li>• Configure transparência ao editar blocos</li>
-                  <li>• "Exportar PDF 1:5" centraliza e desenha blocos coloridos</li>
-                  <li>• "Exportar Shapefile" gera arquivos SHP completos</li>
-                </ul>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
+            </div>
+            
+            {/* Search Bar */}
+            <LocationSearch
+              onLocationSelect={handleLocationSelect}
+              placeholder="Buscar endereço global (CEP, cidade, coordenadas...)"
+            />
+          </CardHeader>
+          
+          <CardContent className="h-full p-0">
+            <AdvancedMapComponent
+              blocks={blocks}
+              selectedColor={selectedColor}
+              transparency={transparency}
+              showSatellite={showSatellite}
+              showBackground={showBackground}
+              printMode={printMode}
+              showNDVI={showNDVI}
+              drawingMode={drawingMode}
+              onPolygonDrawn={handlePolygonDrawn}
+              onBlockUpdate={handleBlockUpdate}
+              onBlockDelete={handleBlockDelete}
+              onBlockSelect={handleBlockSelect}
+              centerCoordinates={centerCoordinates}
+              boundingBox={boundingBox}
+            />
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Shapefile Importer Modal */}
       <ShapefileImporter
