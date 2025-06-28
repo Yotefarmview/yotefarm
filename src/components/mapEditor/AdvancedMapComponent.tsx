@@ -534,7 +534,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       ]);
 
       // Use turf-boolean-operations to split the polygon
-      const splitResult = turf.lineSplit(polygon, splitLine);
+      const splitResult = turf.polygonSplit(polygon, splitLine);
       
       if (splitResult.features.length >= 2) {
         // Get the original block data
@@ -546,8 +546,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         const rightPart = splitResult.features[1];
         
         // Calculate metrics for both parts
-        const leftCoords = leftPart.geometry.coordinates[0];
-        const rightCoords = rightPart.geometry.coordinates[0];
+        const leftCoords = leftPart.geometry.coordinates[0] as number[][];
+        const rightCoords = rightPart.geometry.coordinates[0] as number[][];
         
         const leftMetrics = calculatePolygonMetrics(leftCoords);
         const rightMetrics = calculatePolygonMetrics(rightCoords);
