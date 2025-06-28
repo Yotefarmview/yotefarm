@@ -527,20 +527,35 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       // Calculate the middle point horizontally
       const midX = (bbox[0] + bbox[2]) / 2;
       
-      // Create two new polygons by splitting at the middle
-      // Left half: from min-x to mid-x
-      const leftBbox: [number, number, number, number] = [bbox[0], bbox[1], midX, bbox[3]];
-      const leftBboxPolygon = turf.bboxPolygon(leftBbox);
-      
-      // Right half: from mid-x to max-x  
-      const rightBbox: [number, number, number, number] = [midX, bbox[1], bbox[2], bbox[3]];
-      const rightBboxPolygon = turf.bboxPolygon(rightBbox);
+      // Create a vertical line through the middle to split the polygon
+      const splitLine = turf.lineString([
+        [midX, bbox[1] - 0.01], // Start below the polygon
+        [midX, bbox[3] + 0.01]  // End above the polygon
+      ]);
+
+      // Create a buffer around the line to create splitting polygons
+      const leftBounds = turf.polygon([[
+        [bbox[0] - 0.01, bbox[1] - 0.01],
+        [midX, bbox[1] - 0.01],
+        [midX, bbox[3] + 0.01],
+        [bbox[0] - 0.01, bbox[3] + 0.01],
+        [bbox[0] - 0.01, bbox[1] - 0.01]
+      ]]);
+
+      const rightBounds = turf.polygon([[
+        [midX, bbox[1] - 0.01],
+        [bbox[2] + 0.01, bbox[1] - 0.01],
+        [bbox[2] + 0.01, bbox[3] + 0.01],
+        [midX, bbox[3] + 0.01],
+        [midX, bbox[1] - 0.01]
+      ]]);
       
       // Intersect the original polygon with each half
-      const leftIntersection = turf.intersect(turf.featureCollection([polygon, leftBboxPolygon]));
-      const rightIntersection = turf.intersect(turf.featureCollection([polygon, rightBboxPolygon]));
+      const leftIntersection = turf.intersect(polygon, leftBounds);
+      const rightIntersection = turf.intersect(polygon, rightBounds);
       
       if (leftIntersection && rightIntersection && 
+          leftIntersection.geometry && rightIntersection.geometry &&
           leftIntersection.geometry.type === 'Polygon' && 
           rightIntersection.geometry.type === 'Polygon') {
         
@@ -549,12 +564,22 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         const blockId = selectedFeature.get('blockId');
         
         // Extract coordinates from the intersections
-        const leftCoords = leftIntersection.geometry.coordinates[0] as number[][];
-        const rightCoords = rightIntersection.geometry.coordinates[0] as number[][];
+        const leftCoords = leftIntersection.geometry.coordinates[0];
+        const rightCoords = rightIntersection.geometry.coordinates[0];
+        
+        // Validate coordinates
+        if (!leftCoords || !rightCoords || leftCoords.length < 3 || rightCoords.length < 3) {
+          throw new Error('Invalid coordinates from intersection');
+        }
         
         // Calculate metrics for both parts
         const leftMetrics = calculatePolygonMetrics(leftCoords);
         const rightMetrics = calculatePolygonMetrics(rightCoords);
+        
+        // Ensure we have valid areas
+        if (leftMetrics.area_m2 <= 0 || rightMetrics.area_m2 <= 0) {
+          throw new Error('Invalid area calculations');
+        }
         
         // Create block data for left part
         const leftBlockData: BlockData = {
@@ -562,7 +587,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           nome: `${originalBlockData.nome || originalBlockData.name} - A`,
           color: originalBlockData.cor || originalBlockData.color,
           cor: originalBlockData.cor || originalBlockData.color,
-          transparency: originalBlockData.transparencia || transparency,
+          transparency: originalBlockData.transparencia !== undefined ? originalBlockData.transparencia : transparency,
           coordinates: leftCoords,
           ...leftMetrics
         };
@@ -573,10 +598,16 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           nome: `${originalBlockData.nome || originalBlockData.name} - B`,
           color: originalBlockData.cor || originalBlockData.color,
           cor: originalBlockData.cor || originalBlockData.color,
-          transparency: originalBlockData.transparencia || transparency,
+          transparency: originalBlockData.transparencia !== undefined ? originalBlockData.transparencia : transparency,
           coordinates: rightCoords,
           ...rightMetrics
         };
+        
+        console.log('Division successful:', {
+          leftArea: leftMetrics.area_acres,
+          rightArea: rightMetrics.area_acres,
+          totalOriginal: originalBlockData.area_acres
+        });
         
         // Remove the original feature from the map
         if (vectorSource.current) {
@@ -599,12 +630,13 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         
       } else {
         console.error('Could not divide the block properly - intersection failed');
+        console.log('Intersection results:', { leftIntersection, rightIntersection });
         alert('Não foi possível dividir este bloco. Tente com uma forma mais simples.');
       }
       
     } catch (error) {
       console.error('Error dividing block:', error);
-      alert('Erro ao dividir o bloco. Tente novamente.');
+      alert('Erro ao dividir o bloco: ' + (error instanceof Error ? error.message : 'Erro desconhecido'));
     }
   }, [editingBlock, selectedFeature, onBlockDelete, onPolygonDrawn, calculatePolygonMetrics, transparency]);
 
