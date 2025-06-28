@@ -535,15 +535,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       const leftBounds = turf.bboxPolygon(leftBbox);
       const rightBounds = turf.bboxPolygon(rightBbox);
       
-      // Intersect the original polygon with each half
-      const leftIntersection = turf.intersect(
-        turf.featureCollection([polygon]), 
-        turf.featureCollection([leftBounds])
-      );
-      const rightIntersection = turf.intersect(
-        turf.featureCollection([polygon]), 
-        turf.featureCollection([rightBounds])
-      );
+      // Intersect the original polygon with each half - pass individual features
+      const leftIntersection = turf.intersect(polygon, leftBounds);
+      const rightIntersection = turf.intersect(polygon, rightBounds);
       
       if (leftIntersection && rightIntersection && 
           leftIntersection.geometry && rightIntersection.geometry &&
