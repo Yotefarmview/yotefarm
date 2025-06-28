@@ -29,11 +29,9 @@ const MapEditor: React.FC = () => {
   const [showBackground, setShowBackground] = useState(true);
   const [printMode, setPrintMode] = useState(false);
   const [showNDVI, setShowNDVI] = useState(false);
-  const [selectedColors, setSelectedColors] = useState<string[]>([
-    '#10B981', '#F59E0B', '#EF4444', '#F97316', '#8B5CF6', '#FFFFFF', '#3B82F6', '#EC4899', '#06B6D4'
-  ]);
+  const [selectedColor, setSelectedColor] = useState('#10B981');
   const [transparency, setTransparency] = useState(0.4);
-  const [drawingMode, setDrawingMode] = useState<'polygon' | 'edit' | 'delete' | 'measure' | null>(null);
+  const [drawingMode, setDrawingMode] = useState<'polygon' | 'edit' | 'delete' | null>(null);
   
   // Estados de localização
   const [centerCoordinates, setCenterCoordinates] = useState<[number, number] | undefined>();
@@ -169,10 +167,6 @@ const MapEditor: React.FC = () => {
     }
   };
 
-  const filteredBlocks = blocks.filter(block => 
-    selectedColors.includes(block.cor || '#10B981')
-  );
-
   return (
     <div className="space-y-6">
       <motion.div
@@ -229,8 +223,8 @@ const MapEditor: React.FC = () => {
             onTogglePrintMode={() => setPrintMode(!printMode)}
             showNDVI={showNDVI}
             onToggleNDVI={() => setShowNDVI(!showNDVI)}
-            selectedColors={selectedColors}
-            onColorSelectionChange={setSelectedColors}
+            selectedColor={selectedColor}
+            onColorChange={setSelectedColor}
             transparency={transparency}
             onTransparencyChange={setTransparency}
             drawingMode={drawingMode}
@@ -259,8 +253,8 @@ const MapEditor: React.FC = () => {
             
             <div className="h-[600px]">
               <AdvancedMapComponent
-                blocks={filteredBlocks}
-                selectedColor={selectedColors[0] || '#10B981'}
+                blocks={blocks}
+                selectedColor={selectedColor}
                 transparency={transparency}
                 showSatellite={showSatellite}
                 showBackground={showBackground}
