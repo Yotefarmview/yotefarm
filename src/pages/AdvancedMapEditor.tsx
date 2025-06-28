@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useBlocks } from '@/hooks/useBlocks';
@@ -177,65 +178,73 @@ const AdvancedMapEditor: React.FC = () => {
 
   return (
     <div className="h-screen relative bg-gray-50">
-      {/* Mapa - Tela Inteira */}
-      <AdvancedMapComponent
-        blocks={filteredBlocks}
-        selectedColor={selectedColors[0] || '#10B981'}
-        transparency={transparency}
-        showSatellite={showSatellite}
-        showBackground={showBackground}
-        printMode={printMode}
-        showNDVI={showNDVI}
-        drawingMode={drawingMode}
-        onPolygonDrawn={handlePolygonDrawn}
-        onBlockUpdate={handleBlockUpdate}
-        onBlockDelete={handleBlockDelete}
-        onBlockSelect={handleBlockSelect}
-        centerCoordinates={centerCoordinates}
-        boundingBox={boundingBox}
-      />
+      {/* Controles Horizontais no Topo */}
+      <div className="absolute top-0 left-0 right-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
+        <div className="px-4 py-3">
+          <div className="flex flex-wrap items-center gap-4">
+            <h2 className="text-lg font-bold text-gray-900">Controles do Mapa</h2>
+            
+            <MapControls
+              showSatellite={showSatellite}
+              onToggleSatellite={() => setShowSatellite(!showSatellite)}
+              showBackground={showBackground}
+              onToggleBackground={() => setShowBackground(!showBackground)}
+              printMode={printMode}
+              onTogglePrintMode={() => setPrintMode(!printMode)}
+              showNDVI={showNDVI}
+              onToggleNDVI={() => setShowNDVI(!showNDVI)}
+              selectedColors={selectedColors}
+              onColorSelectionChange={setSelectedColors}
+              transparency={transparency}
+              onTransparencyChange={setTransparency}
+              drawingMode={drawingMode}
+              onDrawingModeChange={setDrawingMode}
+              onCenterMap={handleCenterMap}
+              farms={farms}
+              selectedFarmId={selectedFarmId}
+              onFarmSelect={handleFarmSelect}
+            />
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-600">Buscar:</span>
+              <div className="w-64">
+                <LocationSearch
+                  onLocationSelect={handleLocationFound}
+                  onBoundingBoxSelect={handleBoundingBoxFound}
+                />
+              </div>
+            </div>
+            
+            <div className="text-sm text-gray-600">
+              Blocos: {filteredBlocks.length} de {blocks.length} visíveis
+            </div>
+          </div>
+        </div>
+      </div>
 
-      {/* Controles Flutuantes - Sobrepostos ao Mapa */}
-      <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-lg p-4 max-w-sm max-h-[calc(100vh-2rem)] overflow-y-auto">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">Controles do Mapa</h2>
-        
-        <MapControls
-          showSatellite={showSatellite}
-          onToggleSatellite={() => setShowSatellite(!showSatellite)}
-          showBackground={showBackground}
-          onToggleBackground={() => setShowBackground(!showBackground)}
-          printMode={printMode}
-          onTogglePrintMode={() => setPrintMode(!printMode)}
-          showNDVI={showNDVI}
-          onToggleNDVI={() => setShowNDVI(!showNDVI)}
-          selectedColors={selectedColors}
-          onColorSelectionChange={setSelectedColors}
+      {/* Mapa - Tela Inteira com margem no topo */}
+      <div className="pt-16 h-full">
+        <AdvancedMapComponent
+          blocks={filteredBlocks}
+          selectedColor={selectedColors[0] || '#10B981'}
           transparency={transparency}
-          onTransparencyChange={setTransparency}
+          showSatellite={showSatellite}
+          showBackground={showBackground}
+          printMode={printMode}
+          showNDVI={showNDVI}
           drawingMode={drawingMode}
-          onDrawingModeChange={setDrawingMode}
-          onCenterMap={handleCenterMap}
-          farms={farms}
-          selectedFarmId={selectedFarmId}
-          onFarmSelect={handleFarmSelect}
+          onPolygonDrawn={handlePolygonDrawn}
+          onBlockUpdate={handleBlockUpdate}
+          onBlockDelete={handleBlockDelete}
+          onBlockSelect={handleBlockSelect}
+          centerCoordinates={centerCoordinates}
+          boundingBox={boundingBox}
         />
-        
-        <div className="mt-4">
-          <h3 className="text-sm font-medium text-gray-700 mb-2">Buscar Localização</h3>
-          <LocationSearch
-            onLocationSelect={handleLocationFound}
-            onBoundingBoxSelect={handleBoundingBoxFound}
-          />
-        </div>
-        
-        <div className="mt-4 text-sm text-gray-600">
-          <p>Blocos: {filteredBlocks.length} de {blocks.length} visíveis</p>
-        </div>
       </div>
 
       {/* Formulário de Bloco - Flutuante no canto direito */}
       {selectedBlock && (
-        <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg p-4 max-w-sm max-h-[calc(100vh-2rem)] overflow-y-auto">
+        <div className="absolute top-20 right-4 z-10 bg-white rounded-lg shadow-lg p-4 max-w-sm max-h-[calc(100vh-6rem)] overflow-y-auto">
           <AdvancedBlockForm
             blockData={selectedBlock}
             onSave={handleSaveBlock}
