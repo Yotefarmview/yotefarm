@@ -2,7 +2,6 @@
 import React, { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useBlocks } from '@/hooks/useBlocks';
-import { useFarms } from '@/hooks/useFarms';
 import AdvancedMapComponent from '@/components/mapEditor/AdvancedMapComponent';
 import MapControls from '@/components/mapEditor/MapControls';
 import AdvancedBlockForm from '@/components/mapEditor/AdvancedBlockForm';
@@ -12,7 +11,6 @@ import { useToast } from '@/hooks/use-toast';
 const AdvancedMapEditor: React.FC = () => {
   const { farmId } = useParams<{ farmId: string }>();
   const { blocks, loading, createBlock, updateBlock, deleteBlock } = useBlocks(farmId);
-  const { farms } = useFarms();
   const { toast } = useToast();
   
   // Estados para controles do mapa
@@ -25,7 +23,6 @@ const AdvancedMapEditor: React.FC = () => {
   ]); // Todas as cores selecionadas por padrão
   const [transparency, setTransparency] = useState(0.4);
   const [drawingMode, setDrawingMode] = useState<'polygon' | 'edit' | 'delete' | 'measure' | null>(null);
-  const [selectedFarmId, setSelectedFarmId] = useState<string | null>(farmId || null);
   
   // Estados para localização
   const [centerCoordinates, setCenterCoordinates] = useState<[number, number] | undefined>();
@@ -42,22 +39,14 @@ const AdvancedMapEditor: React.FC = () => {
   const handlePolygonDrawn = async (blockData: any) => {
     try {
       const newBlock = await createBlock({
-        fazenda_id: selectedFarmId!,
+        fazenda_id: farmId!,
         nome: blockData.name,
         cor: blockData.color,
         coordenadas: blockData.coordinates,
         area_m2: blockData.area_m2,
         area_acres: blockData.area_acres,
         perimetro: blockData.perimeter,
-        transparencia: blockData.transparency,
-        // Campos obrigatórios adicionais
-        data_plantio: null,
-        ndvi_historico: [],
-        possui_dreno: false,
-        proxima_aplicacao: null,
-        proxima_colheita: null,
-        tipo_cana: null,
-        ultima_aplicacao: null
+        transparencia: blockData.transparency
       });
       
       toast({
@@ -128,21 +117,6 @@ const AdvancedMapEditor: React.FC = () => {
     setCenterCoordinates(undefined);
   };
 
-  const handleFarmSelect = (farmId: string) => {
-    setSelectedFarmId(farmId);
-    const selectedFarm = farms.find(farm => farm.id === farmId);
-    
-    if (selectedFarm && selectedFarm.latitude && selectedFarm.longitude) {
-      setCenterCoordinates([selectedFarm.longitude, selectedFarm.latitude]);
-      setBoundingBox(undefined);
-      
-      toast({
-        title: "Fazenda selecionada",
-        description: `Direcionando para ${selectedFarm.nome}`
-      });
-    }
-  };
-
   const handleCenterMap = () => {
     // Calcular centro baseado nos blocos visíveis
     if (filteredBlocks.length > 0) {
@@ -177,13 +151,19 @@ const AdvancedMapEditor: React.FC = () => {
   }
 
   return (
-    <div className="h-screen relative bg-gray-50">
-      {/* Controles Horizontais no Topo */}
-      <div className="absolute top-0 left-0 right-0 z-10 bg-white/95 backdrop-blur-sm border-b border-gray-200 shadow-sm">
-        <div className="px-4 py-3">
-          <div className="flex flex-wrap items-center gap-4">
-            <h2 className="text-lg font-bold text-gray-900">Controles do Mapa</h2>
-            
+    <div className="h-screen flex bg-gray-50">
+      {/* Painel de Controles - Esquerda */}
+      <div className="w-80 bg-white shadow-lg border-r border-gray-200 flex flex-col">
+        <div className="p-4 border-b border-gray-200">
+          <h1 className="text-xl font-bold text-gray-900">Editor Avançado</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Blocos: {filteredBlocks.length} de {blocks.length} visíveis
+          </p>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto">
+          {/* Controles do Mapa */}
+          <div className="p-4">
             <MapControls
               showSatellite={showSatellite}
               onToggleSatellite={() => setShowSatellite(!showSatellite)}
@@ -200,30 +180,30 @@ const AdvancedMapEditor: React.FC = () => {
               drawingMode={drawingMode}
               onDrawingModeChange={setDrawingMode}
               onCenterMap={handleCenterMap}
-              farms={farms}
-              selectedFarmId={selectedFarmId}
-              onFarmSelect={handleFarmSelect}
             />
-            
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">Buscar:</span>
-              <div className="w-64">
-                <LocationSearch
-                  onLocationSelect={handleLocationFound}
-                  onBoundingBoxSelect={handleBoundingBoxFound}
-                />
-              </div>
-            </div>
-            
-            <div className="text-sm text-gray-600">
-              Blocos: {filteredBlocks.length} de {blocks.length} visíveis
-            </div>
+          </div>
+
+          {/* Busca de Localização */}
+          <div className="p-4 border-t border-gray-200">
+            <LocationSearch
+              onLocationFound={handleLocationFound}
+              onBoundingBoxFound={handleBoundingBoxFound}
+            />
+          </div>
+
+          {/* Formulário de Bloco */}
+          <div className="p-4 border-t border-gray-200">
+            <AdvancedBlockForm
+              blockData={selectedBlock}
+              onSave={handleSaveBlock}
+              onCancel={() => setSelectedBlock(null)}
+            />
           </div>
         </div>
       </div>
 
-      {/* Mapa - Tela Inteira com margem no topo */}
-      <div className="pt-16 h-full">
+      {/* Mapa - Área Principal */}
+      <div className="flex-1">
         <AdvancedMapComponent
           blocks={filteredBlocks}
           selectedColor={selectedColors[0] || '#10B981'}
@@ -241,17 +221,6 @@ const AdvancedMapEditor: React.FC = () => {
           boundingBox={boundingBox}
         />
       </div>
-
-      {/* Formulário de Bloco - Flutuante no canto direito */}
-      {selectedBlock && (
-        <div className="absolute top-20 right-4 z-10 bg-white rounded-lg shadow-lg p-4 max-w-sm max-h-[calc(100vh-6rem)] overflow-y-auto">
-          <AdvancedBlockForm
-            blockData={selectedBlock}
-            onSave={handleSaveBlock}
-            onCancel={() => setSelectedBlock(null)}
-          />
-        </div>
-      )}
     </div>
   );
 };

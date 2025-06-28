@@ -13,13 +13,11 @@ import {
   Square,
   Edit3,
   Trash2,
-  Ruler,
-  MapPin
+  Ruler
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface MapControlsProps {
   showSatellite: boolean;
@@ -37,9 +35,6 @@ interface MapControlsProps {
   drawingMode: 'polygon' | 'edit' | 'delete' | 'measure' | null;
   onDrawingModeChange: (mode: 'polygon' | 'edit' | 'delete' | 'measure' | null) => void;
   onCenterMap: () => void;
-  farms: any[];
-  selectedFarmId: string | null;
-  onFarmSelect: (farmId: string) => void;
 }
 
 const MapControls: React.FC<MapControlsProps> = ({
@@ -57,10 +52,7 @@ const MapControls: React.FC<MapControlsProps> = ({
   onTransparencyChange,
   drawingMode,
   onDrawingModeChange,
-  onCenterMap,
-  farms,
-  selectedFarmId,
-  onFarmSelect
+  onCenterMap
 }) => {
   const { t } = useTranslation();
 
@@ -102,33 +94,6 @@ const MapControls: React.FC<MapControlsProps> = ({
       <h3 className="text-lg font-semibold text-gray-900 mb-4">
         Controles do Mapa
       </h3>
-
-      {/* Seleção de Fazenda */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-          <MapPin className="w-4 h-4" />
-          Selecionar Fazenda
-        </h4>
-        
-        <Select value={selectedFarmId || ''} onValueChange={onFarmSelect}>
-          <SelectTrigger className="w-full">
-            <SelectValue placeholder="Escolha uma fazenda..." />
-          </SelectTrigger>
-          <SelectContent>
-            {farms.map((farm) => (
-              <SelectItem key={farm.id} value={farm.id}>
-                {farm.nome} {farm.numero_fazenda ? `- ${farm.numero_fazenda}` : ''}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        
-        {selectedFarmId && (
-          <div className="text-xs text-gray-500 bg-green-50 p-2 rounded">
-            <strong>Dica:</strong> A fazenda selecionada será centralizada no mapa automaticamente.
-          </div>
-        )}
-      </div>
 
       {/* Visualização */}
       <div className="space-y-3">
