@@ -23,7 +23,7 @@ import { Select as UISelect, SelectContent, SelectItem, SelectTrigger, SelectVal
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
-import { Save, X, Edit2, Trash2, Ruler } from 'lucide-react';
+import { Save, X, Edit2, Trash2, Ruler, Divide } from 'lucide-react';
 import 'ol/ol.css';
 
 interface BlockData {
@@ -507,6 +507,102 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     const lengthInFt = lengthInMeters * 3.28084; // Convert meters to feet
     return Math.round(lengthInFt * 100) / 100 + ' ft';
   }, []);
+
+  // Handle divide block
+  const handleDivideBlock = useCallback(() => {
+    if (!editingBlock || !selectedFeature) {
+      console.log('No editing block or selected feature');
+      return;
+    }
+
+    try {
+      const geometry = selectedFeature.getGeometry() as Polygon;
+      const coordinates = geometry.getCoordinates()[0].map(coord => toLonLat(coord));
+      coordinates.pop(); // Remove the duplicate last coordinate
+
+      // Create a Turf polygon from the coordinates
+      const polygon = turf.polygon([coordinates]);
+      const bbox = turf.bbox(polygon);
+      
+      // Calculate the middle point horizontally
+      const midX = (bbox[0] + bbox[2]) / 2;
+      
+      // Create a vertical line to split the polygon
+      const splitLine = turf.lineString([
+        [midX, bbox[1] - 0.001], // Start slightly below bbox
+        [midX, bbox[3] + 0.001]  // End slightly above bbox
+      ]);
+
+      // Use turf-boolean-operations to split the polygon
+      const splitResult = turf.lineSplit(polygon, splitLine);
+      
+      if (splitResult.features.length >= 2) {
+        // Get the original block data
+        const originalBlockData = editingBlock;
+        const blockId = selectedFeature.get('blockId');
+        
+        // Create two new blocks from the split result
+        const leftPart = splitResult.features[0];
+        const rightPart = splitResult.features[1];
+        
+        // Calculate metrics for both parts
+        const leftCoords = leftPart.geometry.coordinates[0];
+        const rightCoords = rightPart.geometry.coordinates[0];
+        
+        const leftMetrics = calculatePolygonMetrics(leftCoords);
+        const rightMetrics = calculatePolygonMetrics(rightCoords);
+        
+        // Create block data for left part
+        const leftBlockData: BlockData = {
+          name: `${originalBlockData.nome || originalBlockData.name} - A`,
+          nome: `${originalBlockData.nome || originalBlockData.name} - A`,
+          color: originalBlockData.cor || originalBlockData.color,
+          cor: originalBlockData.cor || originalBlockData.color,
+          transparency: originalBlockData.transparencia || transparency,
+          coordinates: leftCoords,
+          ...leftMetrics
+        };
+        
+        // Create block data for right part
+        const rightBlockData: BlockData = {
+          name: `${originalBlockData.nome || originalBlockData.name} - B`,
+          nome: `${originalBlockData.nome || originalBlockData.name} - B`,
+          color: originalBlockData.cor || originalBlockData.color,
+          cor: originalBlockData.cor || originalBlockData.color,
+          transparency: originalBlockData.transparencia || transparency,
+          coordinates: rightCoords,
+          ...rightMetrics
+        };
+        
+        // Remove the original feature from the map
+        if (vectorSource.current) {
+          vectorSource.current.removeFeature(selectedFeature);
+        }
+        
+        // Delete the original block
+        onBlockDelete(blockId);
+        
+        // Add the new blocks
+        onPolygonDrawn(leftBlockData);
+        onPolygonDrawn(rightBlockData);
+        
+        // Clear selection
+        setEditingBlock(null);
+        setEditForm({ name: '', color: '#10B981', transparency: 0.4 });
+        setSelectedFeature(null);
+        
+        console.log('Block divided successfully into two parts');
+        
+      } else {
+        console.error('Could not divide the block properly');
+        alert('Não foi possível dividir este bloco. Tente com uma forma mais simples.');
+      }
+      
+    } catch (error) {
+      console.error('Error dividing block:', error);
+      alert('Erro ao dividir o bloco. Tente novamente.');
+    }
+  }, [editingBlock, selectedFeature, onBlockDelete, onPolygonDrawn, calculatePolygonMetrics, transparency]);
 
   // Inicializar mapa - uma única vez
   useEffect(() => {
@@ -1149,6 +1245,19 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
               size="sm"
             >
               <X className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {/* New Divide Button */}
+          <div className="pt-2 border-t">
+            <Button 
+              onClick={handleDivideBlock}
+              variant="outline"
+              size="sm"
+              className="w-full border-orange-300 text-orange-700 hover:bg-orange-50"
+            >
+              <Divide className="w-4 h-4 mr-2" />
+              Dividir Bloco ao Meio
             </Button>
           </div>
 
