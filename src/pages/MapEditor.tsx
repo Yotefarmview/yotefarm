@@ -29,9 +29,11 @@ const MapEditor: React.FC = () => {
   const [showBackground, setShowBackground] = useState(true);
   const [printMode, setPrintMode] = useState(false);
   const [showNDVI, setShowNDVI] = useState(false);
-  const [selectedColor, setSelectedColor] = useState('#10B981');
+  const [selectedColors, setSelectedColors] = useState<string[]>([
+    '#10B981', '#F59E0B', '#EF4444', '#F97316', '#8B5CF6', '#FFFFFF', '#3B82F6', '#EC4899', '#06B6D4'
+  ]);
   const [transparency, setTransparency] = useState(0.4);
-  const [drawingMode, setDrawingMode] = useState<'polygon' | 'edit' | 'delete' | null>(null);
+  const [drawingMode, setDrawingMode] = useState<'polygon' | 'edit' | 'delete' | 'measure' | null>(null);
   
   // Estados de localização
   const [centerCoordinates, setCenterCoordinates] = useState<[number, number] | undefined>();
@@ -160,6 +162,20 @@ const MapEditor: React.FC = () => {
     }
   };
 
+  const handleFarmSelect = (farmId: string) => {
+    const selectedFarm = farms.find(farm => farm.id === farmId);
+    
+    if (selectedFarm && selectedFarm.latitude && selectedFarm.longitude) {
+      setCenterCoordinates([selectedFarm.longitude, selectedFarm.latitude]);
+      setBoundingBox(undefined);
+      
+      toast({
+        title: "Fazenda selecionada",
+        description: `Direcionando para ${selectedFarm.nome}`
+      });
+    }
+  };
+
   const handleCenterMap = () => {
     if (currentFarm?.latitude && currentFarm?.longitude) {
       setCenterCoordinates([currentFarm.longitude, currentFarm.latitude]);
@@ -223,13 +239,16 @@ const MapEditor: React.FC = () => {
             onTogglePrintMode={() => setPrintMode(!printMode)}
             showNDVI={showNDVI}
             onToggleNDVI={() => setShowNDVI(!showNDVI)}
-            selectedColor={selectedColor}
-            onColorChange={setSelectedColor}
+            selectedColors={selectedColors}
+            onColorSelectionChange={setSelectedColors}
             transparency={transparency}
             onTransparencyChange={setTransparency}
             drawingMode={drawingMode}
             onDrawingModeChange={setDrawingMode}
             onCenterMap={handleCenterMap}
+            farms={farms}
+            selectedFarmId={farmId}
+            onFarmSelect={handleFarmSelect}
           />
         </motion.div>
 
@@ -254,7 +273,7 @@ const MapEditor: React.FC = () => {
             <div className="h-[600px]">
               <AdvancedMapComponent
                 blocks={blocks}
-                selectedColor={selectedColor}
+                selectedColor={selectedColors[0] || '#10B981'}
                 transparency={transparency}
                 showSatellite={showSatellite}
                 showBackground={showBackground}

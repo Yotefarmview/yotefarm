@@ -2,6 +2,7 @@
 import React, { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useBlocks } from '@/hooks/useBlocks';
+import { useFarms } from '@/hooks/useFarms';
 import AdvancedMapComponent from '@/components/mapEditor/AdvancedMapComponent';
 import MapControls from '@/components/mapEditor/MapControls';
 import AdvancedBlockForm from '@/components/mapEditor/AdvancedBlockForm';
@@ -11,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 const AdvancedMapEditor: React.FC = () => {
   const { farmId } = useParams<{ farmId: string }>();
   const { blocks, loading, createBlock, updateBlock, deleteBlock } = useBlocks(farmId);
+  const { farms } = useFarms();
   const { toast } = useToast();
   
   // Estados para controles do mapa
@@ -23,6 +25,7 @@ const AdvancedMapEditor: React.FC = () => {
   ]); // Todas as cores selecionadas por padrão
   const [transparency, setTransparency] = useState(0.4);
   const [drawingMode, setDrawingMode] = useState<'polygon' | 'edit' | 'delete' | 'measure' | null>(null);
+  const [selectedFarmId, setSelectedFarmId] = useState<string | null>(farmId || null);
   
   // Estados para localização
   const [centerCoordinates, setCenterCoordinates] = useState<[number, number] | undefined>();
@@ -39,14 +42,22 @@ const AdvancedMapEditor: React.FC = () => {
   const handlePolygonDrawn = async (blockData: any) => {
     try {
       const newBlock = await createBlock({
-        fazenda_id: farmId!,
+        fazenda_id: selectedFarmId!,
         nome: blockData.name,
         cor: blockData.color,
         coordenadas: blockData.coordinates,
         area_m2: blockData.area_m2,
         area_acres: blockData.area_acres,
         perimetro: blockData.perimeter,
-        transparencia: blockData.transparency
+        transparencia: blockData.transparency,
+        // Campos obrigatórios adicionais
+        data_plantio: null,
+        ndvi_historico: [],
+        possui_dreno: false,
+        proxima_aplicacao: null,
+        proxima_colheita: null,
+        tipo_cana: null,
+        ultima_aplicacao: null
       });
       
       toast({
@@ -117,6 +128,21 @@ const AdvancedMapEditor: React.FC = () => {
     setCenterCoordinates(undefined);
   };
 
+  const handleFarmSelect = (farmId: string) => {
+    setSelectedFarmId(farmId);
+    const selectedFarm = farms.find(farm => farm.id === farmId);
+    
+    if (selectedFarm && selectedFarm.latitude && selectedFarm.longitude) {
+      setCenterCoordinates([selectedFarm.longitude, selectedFarm.latitude]);
+      setBoundingBox(undefined);
+      
+      toast({
+        title: "Fazenda selecionada",
+        description: `Direcionando para ${selectedFarm.nome}`
+      });
+    }
+  };
+
   const handleCenterMap = () => {
     // Calcular centro baseado nos blocos visíveis
     if (filteredBlocks.length > 0) {
@@ -180,14 +206,17 @@ const AdvancedMapEditor: React.FC = () => {
               drawingMode={drawingMode}
               onDrawingModeChange={setDrawingMode}
               onCenterMap={handleCenterMap}
+              farms={farms}
+              selectedFarmId={selectedFarmId}
+              onFarmSelect={handleFarmSelect}
             />
           </div>
 
           {/* Busca de Localização */}
           <div className="p-4 border-t border-gray-200">
             <LocationSearch
-              onLocationFound={handleLocationFound}
-              onBoundingBoxFound={handleBoundingBoxFound}
+              onLocationSelect={handleLocationFound}
+              onBoundingBoxSelect={handleBoundingBoxFound}
             />
           </div>
 
