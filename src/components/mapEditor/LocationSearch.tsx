@@ -24,14 +24,14 @@ interface PostalCodeResult {
 }
 
 interface LocationSearchProps {
-  onLocationSelect: (lat: number, lon: number, boundingbox?: [number, number, number, number]) => void;
-  onAddressUpdate?: (address: string) => void;
+  onLocationFound: (coordinates: [number, number]) => void;
+  onBoundingBoxFound: (boundingBox: [number, number, number, number]) => void;
   placeholder?: string;
 }
 
 const LocationSearch: React.FC<LocationSearchProps> = ({ 
-  onLocationSelect, 
-  onAddressUpdate,
+  onLocationFound, 
+  onBoundingBoxFound,
   placeholder = "Buscar localização..." 
 }) => {
   const [query, setQuery] = useState('');
@@ -53,15 +53,8 @@ const LocationSearch: React.FC<LocationSearchProps> = ({
         const lat = parseFloat(result.lat);
         const lon = parseFloat(result.lon);
         
-        // Extract address components
-        const address = result.display_name;
-        
-        if (onAddressUpdate && address) {
-          onAddressUpdate(address);
-        }
-        
-        onLocationSelect(lat, lon);
-        setQuery(address);
+        onLocationFound([lat, lon]);
+        setQuery(result.display_name);
         setShowResults(false);
         
         return true;
@@ -118,11 +111,8 @@ const LocationSearch: React.FC<LocationSearchProps> = ({
       parseFloat(result.boundingbox[3])
     ];
     
-    onLocationSelect(lat, lon, boundingbox);
-    
-    if (onAddressUpdate) {
-      onAddressUpdate(result.display_name);
-    }
+    onLocationFound([lat, lon]);
+    onBoundingBoxFound(boundingbox);
     
     setQuery(result.display_name);
     setShowResults(false);

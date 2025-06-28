@@ -13,14 +13,38 @@ import { Feature } from 'ol';
 import 'ol/ol.css';
 
 interface MapComponentProps {
-  onPolygonDrawn: (area: number, perimeter: number, coordinates: number[][]) => void;
+  blocks: any[];
   selectedColor: string;
+  transparency: number;
+  showSatellite: boolean;
+  showBackground: boolean;
+  printMode: boolean;
+  showNDVI: boolean;
+  drawingMode: 'polygon' | 'edit' | 'delete' | 'measure' | null;
+  onPolygonDrawn: (blockData: any) => void;
+  onBlockUpdate: (blockId: string, updates: any) => void;
+  onBlockDelete: (blockId: string) => void;
+  centerCoordinates?: [number, number];
+  boundingBox?: [number, number, number, number];
 }
 
-const MapComponent: React.FC<MapComponentProps> = ({ onPolygonDrawn, selectedColor }) => {
+const MapComponent: React.FC<MapComponentProps> = ({ 
+  blocks,
+  selectedColor,
+  transparency,
+  showSatellite,
+  showBackground,
+  printMode,
+  showNDVI,
+  drawingMode,
+  onPolygonDrawn,
+  onBlockUpdate,
+  onBlockDelete,
+  centerCoordinates,
+  boundingBox
+}) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Map | null>(null);
-  const [showBackground, setShowBackground] = useState(true);
 
   useEffect(() => {
     if (!mapRef.current) return;
@@ -30,7 +54,7 @@ const MapComponent: React.FC<MapComponentProps> = ({ onPolygonDrawn, selectedCol
       source: vectorSource,
       style: new Style({
         fill: new Fill({
-          color: selectedColor + '40', // Add transparency
+          color: selectedColor + Math.round(transparency * 100).toString(16).padStart(2, '0'),
         }),
         stroke: new Stroke({
           color: selectedColor,
@@ -63,8 +87,12 @@ const MapComponent: React.FC<MapComponentProps> = ({ onPolygonDrawn, selectedCol
     const modify = new Modify({ source: vectorSource });
     const snap = new Snap({ source: vectorSource });
 
-    map.addInteraction(draw);
-    map.addInteraction(modify);
+    if (drawingMode === 'polygon') {
+      map.addInteraction(draw);
+    }
+    if (drawingMode === 'edit') {
+      map.addInteraction(modify);
+    }
     map.addInteraction(snap);
 
     draw.on('drawend', (event) => {
@@ -76,7 +104,13 @@ const MapComponent: React.FC<MapComponentProps> = ({ onPolygonDrawn, selectedCol
         const perimeter = getLength(geometry);
         const coordinates = geometry.getCoordinates()[0];
         
-        onPolygonDrawn(area, perimeter, coordinates);
+        onPolygonDrawn({
+          area_m2: area,
+          area_acres: area * 0.000247105,
+          perimeter,
+          coordinates,
+          cor: selectedColor
+        });
       }
     });
 
@@ -85,27 +119,27 @@ const MapComponent: React.FC<MapComponentProps> = ({ onPolygonDrawn, selectedCol
     return () => {
       map.setTarget(undefined);
     };
-  }, [onPolygonDrawn, selectedColor, showBackground]);
+  }, [selectedColor, transparency, showBackground, drawingMode, onPolygonDrawn]);
 
-  const toggleBackground = () => {
-    setShowBackground(!showBackground);
-    if (mapInstance.current) {
-      const layers = mapInstance.current.getLayers();
-      const osmLayer = layers.item(0) as TileLayer<OSM>;
-      osmLayer.setVisible(!showBackground);
+  // Update map center when coordinates change
+  useEffect(() => {
+    if (mapInstance.current && centerCoordinates) {
+      const view = mapInstance.current.getView();
+      view.setCenter(centerCoordinates);
+      view.setZoom(15);
     }
-  };
+  }, [centerCoordinates]);
+
+  // Update map extent when bounding box changes
+  useEffect(() => {
+    if (mapInstance.current && boundingBox) {
+      const view = mapInstance.current.getView();
+      view.fit(boundingBox, { padding: [50, 50, 50, 50] });
+    }
+  }, [boundingBox]);
 
   return (
     <div className="relative">
-      <div className="absolute top-4 right-4 z-10">
-        <button
-          onClick={toggleBackground}
-          className="bg-white px-4 py-2 rounded-lg shadow-md hover:bg-gray-50 transition-colors border"
-        >
-          {showBackground ? 'Remover Fundo' : 'Mostrar Fundo'}
-        </button>
-      </div>
       <div
         ref={mapRef}
         className="w-full h-96 border border-gray-300 rounded-lg"

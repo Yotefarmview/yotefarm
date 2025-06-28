@@ -34,7 +34,7 @@ export const useBlocks = (farmId?: string) => {
     }
   };
 
-  const createBlock = async (blockData: Omit<Block, 'id' | 'criado_em' | 'atualizado_em'>) => {
+  const addBlock = async (blockData: Omit<Block, 'id' | 'criado_em' | 'atualizado_em'>) => {
     try {
       const { data, error } = await supabase
         .from('blocos_fazenda')
@@ -92,7 +92,7 @@ export const useBlocks = (farmId?: string) => {
     blocks,
     loading,
     error,
-    createBlock,
+    addBlock,
     updateBlock,
     deleteBlock,
     refetch: fetchBlocks
