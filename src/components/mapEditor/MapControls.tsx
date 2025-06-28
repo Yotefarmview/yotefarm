@@ -20,37 +20,39 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 
 interface MapControlsProps {
+  showSatellite: boolean;
+  onToggleSatellite: () => void;
+  showBackground: boolean;
+  onToggleBackground: () => void;
+  printMode: boolean;
+  onTogglePrintMode: () => void;
+  showNDVI: boolean;
+  onToggleNDVI: () => void;
   selectedColor: string;
   onColorChange: (color: string) => void;
   transparency: number;
   onTransparencyChange: (value: number) => void;
-  showSatellite: boolean;
-  onShowSatelliteChange: (show: boolean) => void;
-  showBackground: boolean;
-  onShowBackgroundChange: (show: boolean) => void;
-  printMode: boolean;
-  onPrintModeChange: (print: boolean) => void;
-  showNDVI: boolean;
-  onShowNDVIChange: (show: boolean) => void;
   drawingMode: 'polygon' | 'edit' | 'delete' | 'measure' | null;
   onDrawingModeChange: (mode: 'polygon' | 'edit' | 'delete' | 'measure' | null) => void;
+  onCenterMap: () => void;
 }
 
 const MapControls: React.FC<MapControlsProps> = ({
   showSatellite,
-  onShowSatelliteChange,
+  onToggleSatellite,
   showBackground,
-  onShowBackgroundChange,
+  onToggleBackground,
   printMode,
-  onPrintModeChange,
+  onTogglePrintMode,
   showNDVI,
-  onShowNDVIChange,
+  onToggleNDVI,
   selectedColor,
   onColorChange,
   transparency,
   onTransparencyChange,
   drawingMode,
-  onDrawingModeChange
+  onDrawingModeChange,
+  onCenterMap
 }) => {
   const { t } = useTranslation();
 
@@ -80,7 +82,7 @@ const MapControls: React.FC<MapControlsProps> = ({
           <Button
             variant={showSatellite ? "default" : "outline"}
             size="sm"
-            onClick={() => onShowSatelliteChange(!showSatellite)}
+            onClick={onToggleSatellite}
             className="flex items-center gap-2"
           >
             {showSatellite ? <Satellite className="w-4 h-4" /> : <Map className="w-4 h-4" />}
@@ -90,7 +92,7 @@ const MapControls: React.FC<MapControlsProps> = ({
           <Button
             variant={printMode ? "default" : "outline"}
             size="sm"
-            onClick={() => onPrintModeChange(!printMode)}
+            onClick={onTogglePrintMode}
             className="flex items-center gap-2"
           >
             <Printer className="w-4 h-4" />
@@ -102,7 +104,7 @@ const MapControls: React.FC<MapControlsProps> = ({
           <Button
             variant={showBackground ? "default" : "outline"}
             size="sm"
-            onClick={() => onShowBackgroundChange(!showBackground)}
+            onClick={onToggleBackground}
             className="flex items-center gap-2"
           >
             {showBackground ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
@@ -112,13 +114,23 @@ const MapControls: React.FC<MapControlsProps> = ({
           <Button
             variant={showNDVI ? "default" : "outline"}
             size="sm"
-            onClick={() => onShowNDVIChange(!showNDVI)}
+            onClick={onToggleNDVI}
             className="flex items-center gap-2"
           >
             <Layers className="w-4 h-4" />
             NDVI
           </Button>
         </div>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={onCenterMap}
+          className="w-full flex items-center gap-2"
+        >
+          <Target className="w-4 h-4" />
+          Centralizar
+        </Button>
       </div>
 
       {/* Ferramentas de Desenho */}
@@ -189,6 +201,7 @@ const MapControls: React.FC<MapControlsProps> = ({
                     className="w-4 h-4 rounded-full border border-gray-300"
                     style={{ backgroundColor: color.value }}
                   />
+                  <span className="font-medium">{color.label}</span>
                 </div>
               </SelectItem>
             ))}
