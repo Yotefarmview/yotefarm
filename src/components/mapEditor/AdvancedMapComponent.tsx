@@ -527,28 +527,32 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       // Calculate the middle point horizontally
       const midX = (bbox[0] + bbox[2]) / 2;
       
-      // Create a vertical line to split the polygon
-      const splitLine = turf.lineString([
-        [midX, bbox[1] - 0.001], // Start slightly below bbox
-        [midX, bbox[3] + 0.001]  // End slightly above bbox
-      ]);
-
-      // Use turf-boolean-operations to split the polygon
-      const splitResult = turf.polygonSplit(polygon, splitLine);
+      // Create two new polygons by splitting at the middle
+      // Left half: from min-x to mid-x
+      const leftBbox: [number, number, number, number] = [bbox[0], bbox[1], midX, bbox[3]];
+      const leftBboxPolygon = turf.bboxPolygon(leftBbox);
       
-      if (splitResult.features.length >= 2) {
+      // Right half: from mid-x to max-x  
+      const rightBbox: [number, number, number, number] = [midX, bbox[1], bbox[2], bbox[3]];
+      const rightBboxPolygon = turf.bboxPolygon(rightBbox);
+      
+      // Intersect the original polygon with each half
+      const leftIntersection = turf.intersect(turf.featureCollection([polygon, leftBboxPolygon]));
+      const rightIntersection = turf.intersect(turf.featureCollection([polygon, rightBboxPolygon]));
+      
+      if (leftIntersection && rightIntersection && 
+          leftIntersection.geometry.type === 'Polygon' && 
+          rightIntersection.geometry.type === 'Polygon') {
+        
         // Get the original block data
         const originalBlockData = editingBlock;
         const blockId = selectedFeature.get('blockId');
         
-        // Create two new blocks from the split result
-        const leftPart = splitResult.features[0];
-        const rightPart = splitResult.features[1];
+        // Extract coordinates from the intersections
+        const leftCoords = leftIntersection.geometry.coordinates[0] as number[][];
+        const rightCoords = rightIntersection.geometry.coordinates[0] as number[][];
         
         // Calculate metrics for both parts
-        const leftCoords = leftPart.geometry.coordinates[0] as number[][];
-        const rightCoords = rightPart.geometry.coordinates[0] as number[][];
-        
         const leftMetrics = calculatePolygonMetrics(leftCoords);
         const rightMetrics = calculatePolygonMetrics(rightCoords);
         
@@ -594,7 +598,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         console.log('Block divided successfully into two parts');
         
       } else {
-        console.error('Could not divide the block properly');
+        console.error('Could not divide the block properly - intersection failed');
         alert('Não foi possível dividir este bloco. Tente com uma forma mais simples.');
       }
       
