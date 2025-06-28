@@ -99,17 +99,17 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const [measurementForm, setMeasurementForm] = useState({ name: '', isDrain: false });
   const [measurements, setMeasurements] = useState<MeasurementData[]>([]);
 
-  // Color options for blocks
+  // Color options for blocks - updated to English
   const colorOptions = [
-    { value: '#10B981', label: 'Verde', name: 'Plantado' },
-    { value: '#F59E0B', label: 'Amarelo', name: 'Maduro' },
-    { value: '#EF4444', label: 'Vermelho', name: 'Problemas' },
-    { value: '#F97316', label: 'Laranja', name: 'Colhendo' },
-    { value: '#8B5CF6', label: 'Roxo', name: 'Aplicação' },
-    { value: '#FFFFFF', label: 'Branco', name: 'Vazio' },
-    { value: '#3B82F6', label: 'Azul', name: 'Irrigação' },
-    { value: '#EC4899', label: 'Rosa', name: 'Teste' },
-    { value: '#06B6D4', label: 'Turquesa', name: 'Dreno' }
+    { value: '#10B981', label: 'Green' },
+    { value: '#F59E0B', label: 'Yellow' },
+    { value: '#EF4444', label: 'Red' },
+    { value: '#F97316', label: 'Orange' },
+    { value: '#8B5CF6', label: 'Purple' },
+    { value: '#FFFFFF', label: 'White' },
+    { value: '#3B82F6', label: 'Blue' },
+    { value: '#EC4899', label: 'Pink' },
+    { value: '#06B6D4', label: 'Turquoise' }
   ];
 
   // Criar estilo para blocos com nome como legenda e área (apenas acres)
@@ -972,10 +972,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
                         className="w-4 h-4 rounded-full border border-gray-300"
                         style={{ backgroundColor: color.value }}
                       />
-                      <div>
-                        <span className="font-medium">{color.label}</span>
-                        <span className="text-xs text-gray-500 ml-2">{color.name}</span>
-                      </div>
+                      <span className="font-medium">{color.label}</span>
                     </div>
                   </SelectItem>
                 ))}

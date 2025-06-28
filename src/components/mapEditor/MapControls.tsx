@@ -12,7 +12,8 @@ import {
   Palette,
   Square,
   Edit3,
-  Trash2
+  Trash2,
+  Ruler
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -31,8 +32,8 @@ interface MapControlsProps {
   onColorChange: (color: string) => void;
   transparency: number;
   onTransparencyChange: (value: number) => void;
-  drawingMode: 'polygon' | 'edit' | 'delete' | null;
-  onDrawingModeChange: (mode: 'polygon' | 'edit' | 'delete' | null) => void;
+  drawingMode: 'polygon' | 'edit' | 'delete' | 'measure' | null;
+  onDrawingModeChange: (mode: 'polygon' | 'edit' | 'delete' | 'measure' | null) => void;
   onCenterMap: () => void;
 }
 
@@ -56,15 +57,15 @@ const MapControls: React.FC<MapControlsProps> = ({
   const { t } = useTranslation();
 
   const colors = [
-    { value: '#10B981', label: 'Verde', name: 'Plantado' },
-    { value: '#F59E0B', label: 'Amarelo', name: 'Maduro' },
-    { value: '#EF4444', label: 'Vermelho', name: 'Problemas' },
-    { value: '#F97316', label: 'Laranja', name: 'Colhendo' },
-    { value: '#8B5CF6', label: 'Roxo', name: 'Aplicação' },
-    { value: '#FFFFFF', label: 'Branco', name: 'Vazio' },
-    { value: '#3B82F6', label: 'Azul', name: 'Irrigação' },
-    { value: '#EC4899', label: 'Rosa', name: 'Teste' },
-    { value: '#06B6D4', label: 'Turquesa', name: 'Dreno' }
+    { value: '#10B981', label: 'Green' },
+    { value: '#F59E0B', label: 'Yellow' },
+    { value: '#EF4444', label: 'Red' },
+    { value: '#F97316', label: 'Orange' },
+    { value: '#8B5CF6', label: 'Purple' },
+    { value: '#FFFFFF', label: 'White' },
+    { value: '#3B82F6', label: 'Blue' },
+    { value: '#EC4899', label: 'Pink' },
+    { value: '#06B6D4', label: 'Turquoise' }
   ];
 
   return (
@@ -136,7 +137,7 @@ const MapControls: React.FC<MapControlsProps> = ({
       <div className="space-y-3">
         <h4 className="text-sm font-medium text-gray-700">Ferramentas</h4>
         
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Button
             variant={drawingMode === 'polygon' ? "default" : "outline"}
             size="sm"
@@ -156,7 +157,9 @@ const MapControls: React.FC<MapControlsProps> = ({
             <Edit3 className="w-4 h-4" />
             Editar
           </Button>
+        </div>
 
+        <div className="grid grid-cols-2 gap-2">
           <Button
             variant={drawingMode === 'delete' ? "destructive" : "outline"}
             size="sm"
@@ -165,6 +168,16 @@ const MapControls: React.FC<MapControlsProps> = ({
           >
             <Trash2 className="w-4 h-4" />
             Deletar
+          </Button>
+
+          <Button
+            variant={drawingMode === 'measure' ? "default" : "outline"}
+            size="sm"
+            onClick={() => onDrawingModeChange(drawingMode === 'measure' ? null : 'measure')}
+            className="flex items-center gap-2"
+          >
+            <Ruler className="w-4 h-4" />
+            Medir
           </Button>
         </div>
       </div>
@@ -188,10 +201,7 @@ const MapControls: React.FC<MapControlsProps> = ({
                     className="w-4 h-4 rounded-full border border-gray-300"
                     style={{ backgroundColor: color.value }}
                   />
-                  <div>
-                    <span className="font-medium">{color.label}</span>
-                    <span className="text-xs text-gray-500 ml-2">{color.name}</span>
-                  </div>
+                  <span className="font-medium">{color.label}</span>
                 </div>
               </SelectItem>
             ))}
