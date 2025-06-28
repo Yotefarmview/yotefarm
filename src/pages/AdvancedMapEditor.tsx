@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useBlocks } from '@/hooks/useBlocks';
@@ -178,61 +177,57 @@ const AdvancedMapEditor: React.FC = () => {
 
   return (
     <div className="h-screen flex bg-gray-50">
-      {/* Painel de Controles - Esquerda */}
-      <div className="w-80 bg-white shadow-lg border-r border-gray-200 flex flex-col">
-        <div className="p-4 border-b border-gray-200">
-          <h1 className="text-xl font-bold text-gray-900">Editor Avançado</h1>
-          <p className="text-sm text-gray-600 mt-1">
-            Blocos: {filteredBlocks.length} de {blocks.length} visíveis
-          </p>
-        </div>
-        
-        <div className="flex-1 overflow-y-auto">
-          {/* Controles do Mapa */}
-          <div className="p-4">
-            <MapControls
-              showSatellite={showSatellite}
-              onToggleSatellite={() => setShowSatellite(!showSatellite)}
-              showBackground={showBackground}
-              onToggleBackground={() => setShowBackground(!showBackground)}
-              printMode={printMode}
-              onTogglePrintMode={() => setPrintMode(!printMode)}
-              showNDVI={showNDVI}
-              onToggleNDVI={() => setShowNDVI(!showNDVI)}
-              selectedColors={selectedColors}
-              onColorSelectionChange={setSelectedColors}
-              transparency={transparency}
-              onTransparencyChange={setTransparency}
-              drawingMode={drawingMode}
-              onDrawingModeChange={setDrawingMode}
-              onCenterMap={handleCenterMap}
-              farms={farms}
-              selectedFarmId={selectedFarmId}
-              onFarmSelect={handleFarmSelect}
-            />
-          </div>
-
-          {/* Busca de Localização */}
-          <div className="p-4 border-t border-gray-200">
+      {/* Mapa - Área Principal */}
+      <div className="flex-1 relative">
+        {/* Controles Flutuantes */}
+        <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-lg p-4 max-w-sm">
+          <h2 className="text-lg font-bold text-gray-900 mb-4">Controles do Mapa</h2>
+          
+          <MapControls
+            showSatellite={showSatellite}
+            onToggleSatellite={() => setShowSatellite(!showSatellite)}
+            showBackground={showBackground}
+            onToggleBackground={() => setShowBackground(!showBackground)}
+            printMode={printMode}
+            onTogglePrintMode={() => setPrintMode(!printMode)}
+            showNDVI={showNDVI}
+            onToggleNDVI={() => setShowNDVI(!showNDVI)}
+            selectedColors={selectedColors}
+            onColorSelectionChange={setSelectedColors}
+            transparency={transparency}
+            onTransparencyChange={setTransparency}
+            drawingMode={drawingMode}
+            onDrawingModeChange={setDrawingMode}
+            onCenterMap={handleCenterMap}
+            farms={farms}
+            selectedFarmId={selectedFarmId}
+            onFarmSelect={handleFarmSelect}
+          />
+          
+          <div className="mt-4">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Buscar Localização</h3>
             <LocationSearch
               onLocationSelect={handleLocationFound}
               onBoundingBoxSelect={handleBoundingBoxFound}
             />
           </div>
+          
+          <div className="mt-4 text-sm text-gray-600">
+            <p>Blocos: {filteredBlocks.length} de {blocks.length} visíveis</p>
+          </div>
+        </div>
 
-          {/* Formulário de Bloco */}
-          <div className="p-4 border-t border-gray-200">
+        {/* Formulário de Bloco - Flutuante no canto direito */}
+        {selectedBlock && (
+          <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg p-4 max-w-sm">
             <AdvancedBlockForm
               blockData={selectedBlock}
               onSave={handleSaveBlock}
               onCancel={() => setSelectedBlock(null)}
             />
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Mapa - Área Principal */}
-      <div className="flex-1">
         <AdvancedMapComponent
           blocks={filteredBlocks}
           selectedColor={selectedColors[0] || '#10B981'}
