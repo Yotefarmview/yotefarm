@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
@@ -155,7 +154,8 @@ const MapEditor: React.FC = () => {
     }
   };
 
-  const handleLocationSelect = (lat: number, lon: number, bbox?: [number, number, number, number]) => {
+  const handleLocationSelect = (coordinates: [number, number], bbox?: [number, number, number, number]) => {
+    const [lon, lat] = coordinates;
     setCenterCoordinates([lon, lat]);
     if (bbox) {
       setBoundingBox(bbox);

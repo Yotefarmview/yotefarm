@@ -90,7 +90,8 @@ const FarmEditDialog: React.FC<FarmEditDialogProps> = ({
     }
   };
 
-  const handleLocationSelect = (lat: number, lon: number) => {
+  const handleLocationSelect = (coordinates: [number, number]) => {
+    const [lon, lat] = coordinates;
     console.log('Coordenadas selecionadas:', lat, lon);
     setFormData(prev => ({
       ...prev,

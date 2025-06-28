@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
@@ -73,7 +72,8 @@ const Farms: React.FC = () => {
     }
   };
 
-  const handleLocationSelect = (lat: number, lon: number) => {
+  const handleLocationSelect = (coordinates: [number, number]) => {
+    const [lon, lat] = coordinates;
     console.log('Localização selecionada:', lat, lon);
     setNewFarm(prev => ({
       ...prev,
