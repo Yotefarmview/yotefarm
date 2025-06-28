@@ -20,6 +20,7 @@ interface AdvancedBlockFormProps {
     cor?: string;
     data_plantio?: string;
     tipo_cana?: string;
+    idade_cana?: string;
     ultima_aplicacao?: any;
     proxima_aplicacao?: string;
     proxima_colheita?: string;
@@ -41,6 +42,7 @@ const AdvancedBlockForm: React.FC<AdvancedBlockFormProps> = ({
     cor: blockData?.cor || '#10B981',
     data_plantio: blockData?.data_plantio || '',
     tipo_cana: blockData?.tipo_cana || '',
+    idade_cana: blockData?.idade_cana || '',
     proxima_aplicacao: blockData?.proxima_aplicacao || '',
     proxima_colheita: blockData?.proxima_colheita || '',
     possui_dreno: blockData?.possui_dreno || false,
@@ -52,20 +54,32 @@ const AdvancedBlockForm: React.FC<AdvancedBlockFormProps> = ({
   });
 
   const colors = [
-    { value: '#10B981', label: 'Verde', name: 'Plantado' },
-    { value: '#F59E0B', label: 'Amarelo', name: 'Maduro' },
-    { value: '#EF4444', label: 'Vermelho', name: 'Problemas' },
-    { value: '#F97316', label: 'Laranja', name: 'Colhendo' },
-    { value: '#8B5CF6', label: 'Roxo', name: 'Aplicação' },
-    { value: '#FFFFFF', label: 'Branco', name: 'Vazio' },
-    { value: '#3B82F6', label: 'Azul', name: 'Irrigação' },
-    { value: '#EC4899', label: 'Rosa', name: 'Teste' },
-    { value: '#06B6D4', label: 'Turquesa', name: 'Dreno' }
+    { value: '#10B981', label: 'Green', name: 'Planted' },
+    { value: '#F59E0B', label: 'Yellow', name: 'Mature' },
+    { value: '#EF4444', label: 'Red', name: 'Problems' },
+    { value: '#F97316', label: 'Orange', name: 'Harvesting' },
+    { value: '#8B5CF6', label: 'Purple', name: 'Application' },
+    { value: '#FFFFFF', label: 'White', name: 'Empty' },
+    { value: '#3B82F6', label: 'Blue', name: 'Irrigation' },
+    { value: '#EC4899', label: 'Pink', name: 'Test' },
+    { value: '#06B6D4', label: 'Turquoise', name: 'Drain' }
   ];
 
   const caneTypes = [
     'SP80-1842', 'SP81-3250', 'RB92579', 'RB867515', 'SP94-2775',
     'CTC4', 'CTC9', 'CTC15', 'VAT90212', 'SP91-1285'
+  ];
+
+  const caneAges = [
+    { value: 'plant-cane', label: 'Plant Cane' },
+    { value: '1st-stubble', label: '1st Stubble' },
+    { value: '2nd-stubble', label: '2nd Stubble' },
+    { value: '3rd-stubble', label: '3rd Stubble' },
+    { value: '4th-stubble', label: '4th Stubble' },
+    { value: '5th-stubble', label: '5th Stubble' },
+    { value: '6th-stubble', label: '6th Stubble' },
+    { value: '7th-stubble', label: '7th Stubble' },
+    { value: 'fallow', label: 'Fallow' }
   ];
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -150,7 +164,7 @@ const AdvancedBlockForm: React.FC<AdvancedBlockFormProps> = ({
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white border shadow-lg z-50">
                 {colors.map((color) => (
                   <SelectItem key={color.value} value={color.value}>
                     <div className="flex items-center gap-3">
@@ -190,10 +204,26 @@ const AdvancedBlockForm: React.FC<AdvancedBlockFormProps> = ({
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a variedade" />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-white border shadow-lg z-50">
                 {caneTypes.map((type) => (
                   <SelectItem key={type} value={type}>
                     {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="idade_cana">Idade da Cana</Label>
+            <Select value={formData.idade_cana} onValueChange={(value) => setFormData({...formData, idade_cana: value})}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a idade da cana" />
+              </SelectTrigger>
+              <SelectContent className="bg-white border shadow-lg z-50">
+                {caneAges.map((age) => (
+                  <SelectItem key={age.value} value={age.value}>
+                    {age.label}
                   </SelectItem>
                 ))}
               </SelectContent>
