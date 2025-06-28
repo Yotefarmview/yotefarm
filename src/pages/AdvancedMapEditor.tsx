@@ -176,75 +176,73 @@ const AdvancedMapEditor: React.FC = () => {
   }
 
   return (
-    <div className="h-screen flex bg-gray-50">
-      {/* Mapa - Área Principal */}
-      <div className="flex-1 relative">
-        {/* Controles Flutuantes */}
-        <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-lg p-4 max-w-sm">
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Controles do Mapa</h2>
-          
-          <MapControls
-            showSatellite={showSatellite}
-            onToggleSatellite={() => setShowSatellite(!showSatellite)}
-            showBackground={showBackground}
-            onToggleBackground={() => setShowBackground(!showBackground)}
-            printMode={printMode}
-            onTogglePrintMode={() => setPrintMode(!printMode)}
-            showNDVI={showNDVI}
-            onToggleNDVI={() => setShowNDVI(!showNDVI)}
-            selectedColors={selectedColors}
-            onColorSelectionChange={setSelectedColors}
-            transparency={transparency}
-            onTransparencyChange={setTransparency}
-            drawingMode={drawingMode}
-            onDrawingModeChange={setDrawingMode}
-            onCenterMap={handleCenterMap}
-            farms={farms}
-            selectedFarmId={selectedFarmId}
-            onFarmSelect={handleFarmSelect}
-          />
-          
-          <div className="mt-4">
-            <h3 className="text-sm font-medium text-gray-700 mb-2">Buscar Localização</h3>
-            <LocationSearch
-              onLocationSelect={handleLocationFound}
-              onBoundingBoxSelect={handleBoundingBoxFound}
-            />
-          </div>
-          
-          <div className="mt-4 text-sm text-gray-600">
-            <p>Blocos: {filteredBlocks.length} de {blocks.length} visíveis</p>
-          </div>
-        </div>
+    <div className="h-screen relative bg-gray-50">
+      {/* Mapa - Tela Inteira */}
+      <AdvancedMapComponent
+        blocks={filteredBlocks}
+        selectedColor={selectedColors[0] || '#10B981'}
+        transparency={transparency}
+        showSatellite={showSatellite}
+        showBackground={showBackground}
+        printMode={printMode}
+        showNDVI={showNDVI}
+        drawingMode={drawingMode}
+        onPolygonDrawn={handlePolygonDrawn}
+        onBlockUpdate={handleBlockUpdate}
+        onBlockDelete={handleBlockDelete}
+        onBlockSelect={handleBlockSelect}
+        centerCoordinates={centerCoordinates}
+        boundingBox={boundingBox}
+      />
 
-        {/* Formulário de Bloco - Flutuante no canto direito */}
-        {selectedBlock && (
-          <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg p-4 max-w-sm">
-            <AdvancedBlockForm
-              blockData={selectedBlock}
-              onSave={handleSaveBlock}
-              onCancel={() => setSelectedBlock(null)}
-            />
-          </div>
-        )}
-
-        <AdvancedMapComponent
-          blocks={filteredBlocks}
-          selectedColor={selectedColors[0] || '#10B981'}
-          transparency={transparency}
+      {/* Controles Flutuantes - Sobrepostos ao Mapa */}
+      <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-lg p-4 max-w-sm max-h-[calc(100vh-2rem)] overflow-y-auto">
+        <h2 className="text-lg font-bold text-gray-900 mb-4">Controles do Mapa</h2>
+        
+        <MapControls
           showSatellite={showSatellite}
+          onToggleSatellite={() => setShowSatellite(!showSatellite)}
           showBackground={showBackground}
+          onToggleBackground={() => setShowBackground(!showBackground)}
           printMode={printMode}
+          onTogglePrintMode={() => setPrintMode(!printMode)}
           showNDVI={showNDVI}
+          onToggleNDVI={() => setShowNDVI(!showNDVI)}
+          selectedColors={selectedColors}
+          onColorSelectionChange={setSelectedColors}
+          transparency={transparency}
+          onTransparencyChange={setTransparency}
           drawingMode={drawingMode}
-          onPolygonDrawn={handlePolygonDrawn}
-          onBlockUpdate={handleBlockUpdate}
-          onBlockDelete={handleBlockDelete}
-          onBlockSelect={handleBlockSelect}
-          centerCoordinates={centerCoordinates}
-          boundingBox={boundingBox}
+          onDrawingModeChange={setDrawingMode}
+          onCenterMap={handleCenterMap}
+          farms={farms}
+          selectedFarmId={selectedFarmId}
+          onFarmSelect={handleFarmSelect}
         />
+        
+        <div className="mt-4">
+          <h3 className="text-sm font-medium text-gray-700 mb-2">Buscar Localização</h3>
+          <LocationSearch
+            onLocationSelect={handleLocationFound}
+            onBoundingBoxSelect={handleBoundingBoxFound}
+          />
+        </div>
+        
+        <div className="mt-4 text-sm text-gray-600">
+          <p>Blocos: {filteredBlocks.length} de {blocks.length} visíveis</p>
+        </div>
       </div>
+
+      {/* Formulário de Bloco - Flutuante no canto direito */}
+      {selectedBlock && (
+        <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg p-4 max-w-sm max-h-[calc(100vh-2rem)] overflow-y-auto">
+          <AdvancedBlockForm
+            blockData={selectedBlock}
+            onSave={handleSaveBlock}
+            onCancel={() => setSelectedBlock(null)}
+          />
+        </div>
+      )}
     </div>
   );
 };
