@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -111,18 +112,18 @@ const AdvancedBlockForm: React.FC<AdvancedBlockFormProps> = ({
         {blockData.id ? 'Editar Bloco' : 'Novo Bloco'}
       </h3>
 
-      {/* Informações de Área - formatado para 1 casa decimal */}
+      {/* Informações de Área */}
       <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
         <h4 className="font-medium text-green-900 mb-2">Dados Calculados</h4>
         <div className="grid grid-cols-2 gap-4 text-sm">
           <div>
             <span className="text-green-700">Área:</span>
-            <p className="font-medium">{blockData.area_m2?.toFixed(1)} m²</p>
-            <p className="font-medium">{blockData.area_acres?.toFixed(1)} acres</p>
+            <p className="font-medium">{blockData.area_m2?.toFixed(2)} m²</p>
+            <p className="font-medium">{blockData.area_acres?.toFixed(4)} acres</p>
           </div>
           <div>
             <span className="text-green-700">Perímetro:</span>
-            <p className="font-medium">{blockData.perimeter?.toFixed(1)} m</p>
+            <p className="font-medium">{blockData.perimeter?.toFixed(2)} m</p>
           </div>
         </div>
       </div>
