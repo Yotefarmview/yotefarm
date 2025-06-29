@@ -95,7 +95,6 @@ const AdvancedMapEditor: React.FC = () => {
   // Add new state for shapefile importer
   const [showImporter, setShowImporter] = useState(false);
 
-  // Handle farm selection
   const handleFarmChange = (farmId: string) => {
     setSelectedFarmId(farmId);
     const newSearchParams = new URLSearchParams(searchParams);
@@ -387,7 +386,6 @@ const AdvancedMapEditor: React.FC = () => {
     }
   };
 
-  // Função para calcular bounding box dos blocos
   const calculateBlocksBounds = () => {
     console.log('Calculando bounds para blocos:', blocks);
     
@@ -456,18 +454,17 @@ const AdvancedMapEditor: React.FC = () => {
 
   // Função para formatar acres com casas decimais apropriadas
   const formatAcres = (acres: number): string => {
-    if (acres === 0) return '0.00 acres';
+    if (acres === 0) return '0.0 acres';
     
     if (acres >= 100) {
-      return `${acres.toFixed(3)} acres`; // XXX.XXX format
+      return `${acres.toFixed(1)} acres`; // XXX.X format
     } else if (acres >= 10) {
-      return `${acres.toFixed(2)} Acres`; // XX.XX format
+      return `${acres.toFixed(1)} Acres`; // XX.X format
     } else {
-      return `${acres.toFixed(2)} acres`; // X.XX format
+      return `${acres.toFixed(1)} acres`; // X.X format
     }
   };
 
-  // Função melhorada para exportar mapa em PDF sem margem preta
   const exportMapToPDF = async () => {
     try {
       console.log('Iniciando exportação PDF...');
@@ -650,7 +647,7 @@ const AdvancedMapEditor: React.FC = () => {
       
       // Calcular área total com formatação correta
       const totalArea = blocks.reduce((sum, block) => sum + (block.area_acres || 0), 0);
-      pdf.text(`Área Total dos Blocos: ${formatAcres(totalArea)} (${(totalArea * 4046.86).toFixed(2)} m²)`, 20, yPosition);
+      pdf.text(`Área Total dos Blocos: ${formatAcres(totalArea)} (${(totalArea * 4046.86).toFixed(1)} m²)`, 20, yPosition);
       yPosition += 8;
       
       pdf.text(`Número de Blocos: ${blocks.length}`, 20, yPosition);
@@ -722,7 +719,6 @@ const AdvancedMapEditor: React.FC = () => {
     }
   };
 
-  // Função para exportar Shapefile
   const exportShapefile = async () => {
     try {
       console.log('Iniciando exportação Shapefile...');
@@ -868,15 +864,15 @@ const AdvancedMapEditor: React.FC = () => {
         dbfContent += (block.cor || '').toString().padEnd(7, ' ').substring(0, 7);
         
         // AREA_M2
-        const areaM2Str = (block.area_m2 || 0).toFixed(4).padStart(15, ' ');
+        const areaM2Str = (block.area_m2 || 0).toFixed(1).padStart(15, ' ');
         dbfContent += areaM2Str.substring(0, 15);
         
         // AREA_ACRES
-        const areaAcresStr = (block.area_acres || 0).toFixed(4).padStart(15, ' ');
+        const areaAcresStr = (block.area_acres || 0).toFixed(1).padStart(15, ' ');
         dbfContent += areaAcresStr.substring(0, 15);
         
         // PERIMETRO
-        const perimetroStr = (block.perimetro || 0).toFixed(4).padStart(15, ' ');
+        const perimetroStr = (block.perimetro || 0).toFixed(1).padStart(15, ' ');
         dbfContent += perimetroStr.substring(0, 15);
         
         // TIPO_CANA
@@ -908,7 +904,7 @@ const AdvancedMapEditor: React.FC = () => {
 Fazenda: ${currentFarm?.nome || 'Não especificada'}
 Data de Exportação: ${new Date().toLocaleString('pt-BR')}
 Número de Blocos: ${blocks.length}
-Área Total: ${blocks.reduce((sum, block) => sum + (block.area_acres || 0), 0).toFixed(4)} acres
+Área Total: ${blocks.reduce((sum, block) => sum + (block.area_acres || 0), 0).toFixed(1)} acres
 
 ARQUIVOS INCLUÍDOS:
 - .shp: Geometrias dos blocos
@@ -1074,393 +1070,166 @@ CAMPOS DOS DADOS:
         </div>
       </motion.div>
 
-      <div className="flex max-w-screen-2xl mx-auto">
-        {/* Map Area - 75% */}
-        <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="w-3/4 p-4"
-        >
-          <Card className="h-[calc(100vh-120px)]">
-            <CardHeader className="pb-3">
-              <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Navigation className="w-5 h-5" />
-                    Mapa Interativo
-                  </CardTitle>
-                  
-                  {/* Farm Selector - Responsive */}
-                  <div className="min-w-[200px] max-w-[300px]">
-                    <Select value={selectedFarmId} onValueChange={handleFarmChange}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione uma fazenda" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border shadow-lg z-50">
-                        {farms.map((farm) => (
-                          <SelectItem key={farm.id} value={farm.id}>
-                            {farm.nome}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+      {/* Full Width Map */}
+      <motion.div
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        className="w-full p-4 max-w-screen-2xl mx-auto"
+      >
+        <Card className="h-[calc(100vh-120px)]">
+          <CardHeader className="pb-3">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Navigation className="w-5 h-5" />
+                  Mapa Interativo
+                </CardTitle>
                 
-                {/* Map Controls - Responsive Grid */}
-                <div className="flex flex-wrap items-center gap-2 justify-between">
-                  {/* View Controls */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      variant={showSatellite ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setShowSatellite(!showSatellite)}
-                      className="text-xs px-2 py-1 h-8 min-w-[70px]"
-                    >
-                      <Layers className="w-3 h-3 mr-1" />
-                      {showSatellite ? 'Satélite' : 'Padrão'}
-                    </Button>
-                    
-                    <Button
-                      variant={printMode ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setPrintMode(!printMode)}
-                      className="text-xs px-2 py-1 h-8 min-w-[70px] whitespace-nowrap"
-                    >
-                      Modo Impressão
-                    </Button>
-                  </div>
-                  
-                  {/* Drawing Tools */}
-                  <div className="flex flex-wrap items-center gap-1">
-                    <Button
-                      variant={drawingMode === 'polygon' ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setDrawingMode(drawingMode === 'polygon' ? null : 'polygon')}
-                      className="text-xs px-2 py-1 h-8 min-w-[60px]"
-                    >
-                      Desenhar
-                    </Button>
-                    
-                    <Button
-                      variant={drawingMode === 'measure' ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setDrawingMode(drawingMode === 'measure' ? null : 'measure')}
-                      className="text-xs px-2 py-1 h-8 min-w-[50px]"
-                    >
-                      <Ruler className="w-3 h-3 mr-1" />
-                      Medir
-                    </Button>
-                    
-                    <Button
-                      variant={drawingMode === 'edit' ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setDrawingMode(drawingMode === 'edit' ? null : 'edit')}
-                      className="text-xs px-2 py-1 h-8 min-w-[50px]"
-                    >
-                      Editar
-                    </Button>
-                    
-                    <Button
-                      variant={drawingMode === 'delete' ? "destructive" : "outline"}
-                      size="sm"
-                      onClick={() => setDrawingMode(drawingMode === 'delete' ? null : 'delete')}
-                      className="text-xs px-2 py-1 h-8 min-w-[55px]"
-                    >
-                      Deletar
-                    </Button>
-                  </div>
+                {/* Farm Selector - Responsive */}
+                <div className="min-w-[200px] max-w-[300px]">
+                  <Select value={selectedFarmId} onValueChange={handleFarmChange}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma fazenda" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border shadow-lg z-50">
+                      {farms.map((farm) => (
+                        <SelectItem key={farm.id} value={farm.id}>
+                          {farm.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
               
-              {/* Search Bar */}
-              <LocationSearch
-                onLocationSelect={handleLocationSelect}
-                placeholder="Buscar endereço global (CEP, cidade, coordenadas...)"
-              />
-            </CardHeader>
-            
-            <CardContent className="h-full p-0">
-              <AdvancedMapComponent
-                blocks={blocks}
-                selectedColor={selectedColor}
-                transparency={transparency}
-                showSatellite={showSatellite}
-                showBackground={showBackground}
-                printMode={printMode}
-                showNDVI={showNDVI}
-                drawingMode={drawingMode}
-                onPolygonDrawn={handlePolygonDrawn}
-                onBlockUpdate={handleBlockUpdate}
-                onBlockDelete={handleBlockDelete}
-                onBlockSelect={handleBlockSelect}
-                centerCoordinates={centerCoordinates}
-                boundingBox={boundingBox}
-              />
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Sidebar - 25% */}
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="w-1/4 p-4 pl-0"
-        >
-          <Card className="h-[calc(100vh-120px)] overflow-y-auto">
-            <CardHeader>
-              <CardTitle className="text-lg">
-                {selectedBlock ? 'Editar Bloco' : 'Dados da Fazenda'}
-              </CardTitle>
-            </CardHeader>
-            
-            <CardContent className="space-y-4">
-              {/* Block Info Display */}
-              {selectedBlock && (
-                <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                  <h4 className="font-medium text-green-900 mb-2">Dados Calculados</h4>
-                  <div className="grid grid-cols-1 gap-2 text-sm">
-                    <div>
-                      <span className="text-green-700">Área:</span>
-                      <p className="font-medium">{selectedBlock.area_m2?.toFixed(2)} m²</p>
-                      <p className="font-medium">{formatAcres(selectedBlock.area_acres || 0)}</p>
-                    </div>
-                    <div>
-                      <span className="text-green-700">Perímetro:</span>
-                      <p className="font-medium">{selectedBlock.perimetro?.toFixed(2)} m</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Block Form - Only when editing a block */}
-              {selectedBlock && (
-                <div className="space-y-4">
-                  <Separator />
-                  <h4 className="font-medium text-gray-900">Configurações do Bloco</h4>
-                  
-                  <div>
-                    <Label htmlFor="block_nome">Nome do Bloco</Label>
-                    <Input
-                      id="block_nome"
-                      value={blockFormData.nome}
-                      onChange={(e) => setBlockFormData({...blockFormData, nome: e.target.value})}
-                      placeholder="Ex: Talhão A1, Bloco Norte..."
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="block_cor">Cor do Bloco</Label>
-                    <Select 
-                      value={blockFormData.cor} 
-                      onValueChange={(value) => {
-                        setBlockFormData({...blockFormData, cor: value});
-                        setSelectedColor(value);
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border shadow-lg z-50">
-                        {colorOptions.map((color) => (
-                          <SelectItem key={color.value} value={color.value}>
-                            <div className="flex items-center gap-3">
-                              <div 
-                                className="w-4 h-4 rounded-full border border-gray-300"
-                                style={{ backgroundColor: color.value }}
-                              />
-                              <div>
-                                <span className="font-medium">{color.label}</span>
-                                <span className="text-xs text-gray-500 ml-2">{color.name}</span>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Button 
-                    onClick={handleSaveBlock}
-                    className="w-full bg-green-600 hover:bg-green-700"
+              {/* Map Controls - Responsive Grid */}
+              <div className="flex flex-wrap items-center gap-2 justify-between">
+                {/* View Controls */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant={showSatellite ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowSatellite(!showSatellite)}
+                    className="text-xs px-2 py-1 h-8 min-w-[70px]"
                   >
-                    <Save className="w-4 h-4 mr-2" />
-                    Salvar Bloco
+                    <Layers className="w-3 h-3 mr-1" />
+                    {showSatellite ? 'Satélite' : 'Padrão'}
+                  </Button>
+                  
+                  <Button
+                    variant={printMode ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setPrintMode(!printMode)}
+                    className="text-xs px-2 py-1 h-8 min-w-[70px] whitespace-nowrap"
+                  >
+                    Modo Impressão
                   </Button>
                 </div>
-              )}
-
-              {/* Farm Form - Always visible when farm is selected */}
-              {!selectedBlock && selectedFarmId && (
-                <div className="space-y-4">
-                  <h4 className="font-medium text-gray-900">Informações da Fazenda</h4>
-
-                  <div>
-                    <Label htmlFor="tipo_cana">Tipo de Cana</Label>
-                    <Input
-                      id="tipo_cana"
-                      value={farmFormData.tipo_cana}
-                      onChange={(e) => setFarmFormData({...farmFormData, tipo_cana: e.target.value})}
-                      placeholder="SP80-1842, RB92579, etc."
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="data_plantio">Data do Plantio</Label>
-                    <Input
-                      id="data_plantio"
-                      type="date"
-                      value={farmFormData.data_plantio}
-                      onChange={(e) => setFarmFormData({...farmFormData, data_plantio: e.target.value})}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="ultima_aplicacao">Última Aplicação</Label>
-                    <Input
-                      id="ultima_aplicacao"
-                      type="date"
-                      value={farmFormData.ultima_aplicacao}
-                      onChange={(e) => setFarmFormData({...farmFormData, ultima_aplicacao: e.target.value})}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="proxima_colheita">Próxima Colheita</Label>
-                    <Input
-                      id="proxima_colheita"
-                      type="date"
-                      value={farmFormData.proxima_colheita}
-                      onChange={(e) => setFarmFormData({...farmFormData, proxima_colheita: e.target.value})}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="observacoes">Observações</Label>
-                    <Input
-                      id="observacoes"
-                      value={farmFormData.observacoes}
-                      onChange={(e) => setFarmFormData({...farmFormData, observacoes: e.target.value})}
-                      placeholder="Observações gerais sobre a fazenda"
-                    />
-                  </div>
-
-                  <Button 
-                    onClick={handleSaveFarm}
-                    className="w-full bg-green-600 hover:bg-green-700"
+                
+                {/* Drawing Tools */}
+                <div className="flex flex-wrap items-center gap-1">
+                  <Button
+                    variant={drawingMode === 'polygon' ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setDrawingMode(drawingMode === 'polygon' ? null : 'polygon')}
+                    className="text-xs px-2 py-1 h-8 min-w-[60px]"
                   >
-                    <Save className="w-4 h-4 mr-2" />
-                    Salvar Dados da Fazenda
+                    Desenhar
+                  </Button>
+                  
+                  <Button
+                    variant={drawingMode === 'measure' ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setDrawingMode(drawingMode === 'measure' ? null : 'measure')}
+                    className="text-xs px-2 py-1 h-8 min-w-[50px]"
+                  >
+                    <Ruler className="w-3 h-3 mr-1" />
+                    Medir
+                  </Button>
+                  
+                  <Button
+                    variant={drawingMode === 'edit' ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setDrawingMode(drawingMode === 'edit' ? null : 'edit')}
+                    className="text-xs px-2 py-1 h-8 min-w-[50px]"
+                  >
+                    Editar
+                  </Button>
+                  
+                  <Button
+                    variant={drawingMode === 'delete' ? "destructive" : "outline"}
+                    size="sm"
+                    onClick={() => setDrawingMode(drawingMode === 'delete' ? null : 'delete')}
+                    className="text-xs px-2 py-1 h-8 min-w-[55px]"
+                  >
+                    Deletar
                   </Button>
                 </div>
-              )}
 
-              {/* Drawing controls */}
-              {!selectedBlock && (
-                <div className="space-y-4">
-                  <Separator />
-                  <h4 className="font-medium text-gray-900">Novo Bloco</h4>
+                {/* Drawing Config - Quick Controls */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    value={blockFormData.nome}
+                    onChange={(e) => setBlockFormData({...blockFormData, nome: e.target.value})}
+                    placeholder="Nome do bloco"
+                    className="w-32 h-8 text-xs"
+                  />
                   
-                  <div>
-                    <Label htmlFor="new_block_nome">Nome do Novo Bloco</Label>
-                    <Input
-                      id="new_block_nome"
-                      value={blockFormData.nome}
-                      onChange={(e) => setBlockFormData({...blockFormData, nome: e.target.value})}
-                      placeholder="Ex: Talhão A1, Bloco Norte..."
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="new_block_cor">Cor do Novo Bloco</Label>
-                    <Select 
-                      value={selectedColor} 
-                      onValueChange={(value) => {
-                        setSelectedColor(value);
-                        setBlockFormData({...blockFormData, cor: value});
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border shadow-lg z-50">
-                        {colorOptions.map((color) => (
-                          <SelectItem key={color.value} value={color.value}>
-                            <div className="flex items-center gap-3">
-                              <div 
-                                className="w-4 h-4 rounded-full border border-gray-300"
-                                style={{ backgroundColor: color.value }}
-                              />
-                              <div>
-                                <span className="font-medium">{color.label}</span>
-                                <span className="text-xs text-gray-500 ml-2">{color.name}</span>
-                              </div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="transparencia">Transparência: {Math.round(transparency * 100)}%</Label>
-                    <Slider
-                      value={[transparency]}
-                      onValueChange={(value) => setTransparency(value[0])}
-                      max={1}
-                      min={0.1}
-                      step={0.1}
-                      className="w-full mt-2"
-                    />
-                  </div>
-
-                  <Separator />
-
-                  {/* Advanced Options */}
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id="showNDVI"
-                        checked={showNDVI}
-                        onCheckedChange={(checked) => setShowNDVI(!!checked)}
-                      />
-                      <Label htmlFor="showNDVI">Mostrar NDVI</Label>
-                    </div>
-                  </div>
-
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setSelectedBlock(null);
-                      setDrawingMode(null);
-                      resetBlockForm();
+                  <Select 
+                    value={selectedColor} 
+                    onValueChange={(value) => {
+                      setSelectedColor(value);
+                      setBlockFormData({...blockFormData, cor: value});
                     }}
-                    className="w-full"
                   >
-                    Cancelar
-                  </Button>
+                    <SelectTrigger className="w-24 h-8 text-xs">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white border shadow-lg z-50">
+                      {colorOptions.map((color) => (
+                        <SelectItem key={color.value} value={color.value}>
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-3 h-3 rounded-full border border-gray-300"
+                              style={{ backgroundColor: color.value }}
+                            />
+                            <span className="text-xs">{color.label}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
-
-              {/* Instructions */}
-              <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <h4 className="font-medium text-blue-900 mb-2">Instruções:</h4>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• Selecione uma fazenda primeiro</li>
-                  <li>• Use "Desenhar" para criar novos blocos</li>
-                  <li>• Use "Medir" para criar medições lineares</li>
-                  <li>• Clique em blocos/medições existentes para editar</li>
-                  <li>• Use "Modo Impressão" antes de exportar PDF</li>
-                  <li>• Busque por endereços na barra de pesquisa</li>
-                  <li>• Configure transparência ao editar blocos</li>
-                  <li>• "Exportar PDF 1:5" centraliza e desenha blocos coloridos</li>
-                  <li>• "Exportar Shapefile" gera arquivos SHP completos</li>
-                </ul>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
+            </div>
+            
+            {/* Search Bar */}
+            <LocationSearch
+              onLocationSelect={handleLocationSelect}
+              placeholder="Buscar endereço global (CEP, cidade, coordenadas...)"
+            />
+          </CardHeader>
+          
+          <CardContent className="h-full p-0">
+            <AdvancedMapComponent
+              blocks={blocks}
+              selectedColor={selectedColor}
+              transparency={transparency}
+              showSatellite={showSatellite}
+              showBackground={showBackground}
+              printMode={printMode}
+              showNDVI={showNDVI}
+              drawingMode={drawingMode}
+              onPolygonDrawn={handlePolygonDrawn}
+              onBlockUpdate={handleBlockUpdate}
+              onBlockDelete={handleBlockDelete}
+              onBlockSelect={handleBlockSelect}
+              centerCoordinates={centerCoordinates}
+              boundingBox={boundingBox}
+            />
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Shapefile Importer Modal */}
       <ShapefileImporter
