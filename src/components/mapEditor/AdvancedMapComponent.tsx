@@ -48,8 +48,9 @@ interface MeasurementData {
 }
 
 interface AdvancedMapComponentProps {
-  blocks: any[];
+  blocks?: any[];
   selectedColor: string;
+  selectedColors: string[];
   transparency: number;
   showSatellite: boolean;
   showBackground: boolean;
@@ -65,8 +66,9 @@ interface AdvancedMapComponentProps {
 }
 
 const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
-  blocks,
+  blocks = [],
   selectedColor,
+  selectedColors,
   transparency,
   showSatellite,
   showBackground,
@@ -111,6 +113,14 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     { value: '#EC4899', label: 'Rosa', name: 'Teste' },
     { value: '#06B6D4', label: 'Turquesa', name: 'Dreno' }
   ];
+
+  // Filter blocks based on selected colors
+  const filteredBlocks = React.useMemo(() => {
+    if (!selectedColors || selectedColors.length === 0) {
+      return [];
+    }
+    return blocks.filter(block => selectedColors.includes(block.cor || block.color));
+  }, [blocks, selectedColors]);
 
   // Criar estilo para blocos com nome como legenda e área (apenas acres)
   const createBlockStyle = useCallback((color: string, transparency: number, name?: string, area_acres?: number, isSelected?: boolean) => {
@@ -574,13 +584,13 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   useEffect(() => {
     if (!vectorSource.current || !mapReady) return;
 
-    console.log('Carregando blocos:', blocks.length);
+    console.log('Carregando blocos:', filteredBlocks.length, 'out of', blocks.length, 'total blocks');
 
     // Limpar blocos existentes
     vectorSource.current.clear();
 
     // Carregar novos blocos
-    blocks.forEach(block => {
+    filteredBlocks.forEach(block => {
       if (block.coordenadas) {
         try {
           let coordinates;
@@ -605,7 +615,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           feature.set('blockData', block);
           feature.set('isSelected', false);
           
-          console.log('Adding block to map:', block.id, block.nome, 'transparency:', block.transparencia !== undefined ? block.transparencia : transparency);
+          console.log('Adding filtered block to map:', block.id, block.nome, 'color:', block.cor);
           
           vectorSource.current!.addFeature(feature);
         } catch (error) {
@@ -613,7 +623,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }
       }
     });
-  }, [blocks, mapReady, transparency]);
+  }, [filteredBlocks, mapReady, transparency]);
 
   // Atualizar visibilidade das camadas
   useEffect(() => {

@@ -12,11 +12,14 @@ import {
   Palette,
   Square,
   Edit3,
-  Trash2
+  Trash2,
+  CheckSquare,
+  Square as UncheckedSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface MapControlsProps {
   showSatellite: boolean;
@@ -29,11 +32,15 @@ interface MapControlsProps {
   onToggleNDVI: () => void;
   selectedColor: string;
   onColorChange: (color: string) => void;
+  selectedColors: string[];
+  onSelectedColorsChange: (colors: string[]) => void;
   transparency: number;
   onTransparencyChange: (value: number) => void;
   drawingMode: 'polygon' | 'edit' | 'delete' | null;
   onDrawingModeChange: (mode: 'polygon' | 'edit' | 'delete' | null) => void;
   onCenterMap: () => void;
+  totalBlocks: number;
+  visibleBlocks: number;
 }
 
 const MapControls: React.FC<MapControlsProps> = ({
@@ -47,11 +54,15 @@ const MapControls: React.FC<MapControlsProps> = ({
   onToggleNDVI,
   selectedColor,
   onColorChange,
+  selectedColors,
+  onSelectedColorsChange,
   transparency,
   onTransparencyChange,
   drawingMode,
   onDrawingModeChange,
-  onCenterMap
+  onCenterMap,
+  totalBlocks,
+  visibleBlocks
 }) => {
   const { t } = useTranslation();
 
@@ -66,6 +77,26 @@ const MapControls: React.FC<MapControlsProps> = ({
     { value: '#EC4899', label: 'Rosa', name: 'Teste' },
     { value: '#06B6D4', label: 'Turquesa', name: 'Dreno' }
   ];
+
+  const handleColorToggle = (colorValue: string) => {
+    const newSelectedColors = selectedColors.includes(colorValue)
+      ? selectedColors.filter(c => c !== colorValue)
+      : [...selectedColors, colorValue];
+    onSelectedColorsChange(newSelectedColors);
+  };
+
+  const handleSelectAll = () => {
+    if (selectedColors.length === colors.length) {
+      // Deselect all
+      onSelectedColorsChange([]);
+    } else {
+      // Select all
+      onSelectedColorsChange(colors.map(c => c.value));
+    }
+  };
+
+  const allSelected = selectedColors.length === colors.length;
+  const someSelected = selectedColors.length > 0 && selectedColors.length < colors.length;
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 space-y-4">
@@ -169,11 +200,11 @@ const MapControls: React.FC<MapControlsProps> = ({
         </div>
       </div>
 
-      {/* Configurações de Cor */}
+      {/* Configurações de Cor para Desenho */}
       <div className="space-y-3">
         <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
           <Palette className="w-4 h-4" />
-          Cor do Bloco
+          Cor para Desenho
         </h4>
         
         <Select value={selectedColor} onValueChange={onColorChange}>
@@ -211,6 +242,70 @@ const MapControls: React.FC<MapControlsProps> = ({
             className="w-full"
           />
         </div>
+      </div>
+
+      {/* Filtros de Visualização por Cor */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+            <Layers className="w-4 h-4" />
+            Filtros por Cor
+          </h4>
+          <div className="text-xs text-gray-500">
+            {visibleBlocks}/{totalBlocks} blocos
+          </div>
+        </div>
+
+        {/* Botão Selecionar/Deselecionar Todas */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleSelectAll}
+          className="w-full flex items-center gap-2"
+        >
+          {allSelected ? (
+            <CheckSquare className="w-4 h-4" />
+          ) : someSelected ? (
+            <div className="w-4 h-4 border-2 border-gray-400 rounded-sm flex items-center justify-center">
+              <div className="w-2 h-2 bg-gray-400 rounded-sm"></div>
+            </div>
+          ) : (
+            <UncheckedSquare className="w-4 h-4" />
+          )}
+          {allSelected ? 'Deselecionar Todas' : 'Selecionar Todas'}
+        </Button>
+
+        {/* Lista de Cores com Checkboxes */}
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {colors.map((color) => (
+            <div key={color.value} className="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
+              <Checkbox
+                id={`color-${color.value}`}
+                checked={selectedColors.includes(color.value)}
+                onCheckedChange={() => handleColorToggle(color.value)}
+              />
+              <div 
+                className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0"
+                style={{ backgroundColor: color.value }}
+              />
+              <label 
+                htmlFor={`color-${color.value}`}
+                className="flex-1 text-sm font-medium cursor-pointer"
+              >
+                {color.label}
+              </label>
+              <span className="text-xs text-gray-500">
+                {color.name}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {selectedColors.length === 0 && (
+          <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded-md border border-amber-200">
+            ⚠️ Nenhuma cor selecionada. Todos os blocos estão ocultos.
+          </div>
+        )}
       </div>
     </div>
   );
