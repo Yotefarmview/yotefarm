@@ -114,7 +114,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
   // Criar estilo para blocos com nome como legenda e área (apenas acres)
   const createBlockStyle = useCallback((color: string, transparency: number, name?: string, area_acres?: number, isSelected?: boolean) => {
-    const displayText = name ? `${name}\n${area_acres?.toFixed(4) || 0} acres` : '';
+    const displayText = name ? `${name}\n${area_acres?.toFixed(1) || 0} acres` : '';
     
     // Convert transparency to alpha correctly - transparency 0 = fully opaque, transparency 1 = fully transparent
     const alpha = Math.round((1 - transparency) * 255).toString(16).padStart(2, '0');
@@ -153,7 +153,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const createMeasurementStyle = useCallback((measurement: MeasurementData, isSelected?: boolean) => {
     const color = measurement.isDrain ? '#3B82F6' : '#FF6B35';
     const distanceInFt = measurement.distance * 3.28084; // Convert meters to feet
-    const displayText = `${measurement.name}\n${distanceInFt.toFixed(2)}ft`;
+    const displayText = `${measurement.name}\n${distanceInFt.toFixed(1)}ft`;
     
     return new Style({
       stroke: new Stroke({
@@ -192,9 +192,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       const areaAcres = area * 0.000247105; // conversão para acres
 
       return {
-        area_m2: Math.round(area * 100) / 100,
-        area_acres: Math.round(areaAcres * 10000) / 10000,
-        perimeter: Math.round(perimeter * 100) / 100
+        area_m2: Math.round(area * 10) / 10,
+        area_acres: Math.round(areaAcres * 10) / 10,
+        perimeter: Math.round(perimeter * 10) / 10
       };
     } catch (error) {
       console.error('Erro no cálculo de métricas:', error);
@@ -459,7 +459,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const formatLength = useCallback((line: LineString) => {
     const lengthInMeters = getLength(line);
     const lengthInFt = lengthInMeters * 3.28084; // Convert meters to feet
-    return Math.round(lengthInFt * 100) / 100 + ' ft';
+    return Math.round(lengthInFt * 10) / 10 + ' ft';
   }, []);
 
   // Inicializar mapa - uma única vez
@@ -1020,7 +1020,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
                 </div>
                 <div>
                   <span className="text-green-700">Área:</span>
-                  <p className="font-medium">{editingBlock.area_acres?.toFixed(4) || 0} acres</p>
+                  <p className="font-medium">{editingBlock.area_acres?.toFixed(1) || 0} acres</p>
                 </div>
               </div>
             </div>
@@ -1138,7 +1138,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
                 <div className="grid grid-cols-1 gap-2 text-sm">
                   <div>
                     <span className="text-blue-700">Distância:</span>
-                    <p className="font-medium">{editingMeasurement.distance.toFixed(2)} metros</p>
+                    <p className="font-medium">{editingMeasurement.distance.toFixed(1)} metros</p>
                   </div>
                   <div>
                     <span className="text-blue-700">Tipo:</span>
