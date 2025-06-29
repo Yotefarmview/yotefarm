@@ -36,7 +36,7 @@ interface AdvancedMapComponentProps {
   showBackground?: boolean;
   printMode?: boolean;
   showNDVI?: boolean;
-  drawingMode?: 'polygon' | 'edit' | 'delete' | null;
+  drawingMode?: 'polygon' | 'edit' | 'delete' | 'measure' | null;
   onPolygonDrawn?: (blockData: any) => void;
   onBlockUpdate?: (blockId: string, updates: any) => void;
   onBlockDelete?: (blockId: string) => void;
@@ -168,8 +168,10 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     const bounds = new L.LatLngBounds([]);
 
     blocks.forEach(block => {
-      const latLngs = block.polygon.map(coord => new L.LatLng(coord[0], coord[1]));
-      bounds.extend(latLngs);
+      // Convert coordinates to LatLng tuples for bounds extension
+      block.polygon.forEach(coord => {
+        bounds.extend([coord[0], coord[1]] as L.LatLngTuple);
+      });
     });
 
     // Fit the map view to the bounds
