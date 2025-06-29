@@ -119,13 +119,23 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     // Convert transparency to alpha correctly - transparency 0 = fully opaque, transparency 1 = fully transparent
     const alpha = Math.round((1 - transparency) * 255).toString(16).padStart(2, '0');
     
+    // Define stroke based on print mode and selection
+    let strokeColor = isSelected ? '#FFD700' : color;
+    let strokeWidth = isSelected ? 4 : 2;
+    
+    // In print mode, always use black border with 2px width for better visibility
+    if (printMode) {
+      strokeColor = '#000000';
+      strokeWidth = 2;
+    }
+    
     return new Style({
       fill: new Fill({
         color: color + alpha,
       }),
       stroke: new Stroke({
-        color: isSelected ? '#FFD700' : color,
-        width: isSelected ? 4 : 2,
+        color: strokeColor,
+        width: strokeWidth,
       }),
       text: displayText ? new Text({
         text: displayText,
@@ -137,7 +147,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         textBaseline: 'middle',
       }) : undefined,
     });
-  }, []);
+  }, [printMode]);
 
   // Criar estilo para medições
   const createMeasurementStyle = useCallback((measurement: MeasurementData, isSelected?: boolean) => {
@@ -854,6 +864,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
               feature,
               blockData?.nome || feature.get('name') || '',
               blockData?.cor || feature.get('color') || selectedColor,
+              blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
               metrics.area_acres,
               feature.get('isSelected') || false
             );
@@ -1050,27 +1061,25 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     </div>
   );
 
-  // Update all existing blocks when global transparency changes
+  // Update all existing blocks when global transparency or print mode changes
   useEffect(() => {
     if (!vectorSource.current || !mapReady) return;
 
-    console.log('Updating transparency for all blocks:', transparency);
+    console.log('Updating styles for all blocks - transparency:', transparency, 'print mode:', printMode);
     
     vectorSource.current.getFeatures().forEach(feature => {
       const blockData = feature.get('blockData');
-      // Only update blocks that don't have their own custom transparency
-      if (blockData && blockData.transparencia === undefined) {
-        updateFeatureStyle(
-          feature,
-          blockData.nome || feature.get('name') || '',
-          blockData.cor || feature.get('color') || selectedColor,
-          transparency, // Use global transparency
-          blockData.area_acres,
-          feature.get('isSelected') || false
-        );
-      }
+      // Update all blocks with new style (print mode affects stroke)
+      updateFeatureStyle(
+        feature,
+        blockData?.nome || feature.get('name') || '',
+        blockData?.cor || feature.get('color') || selectedColor,
+        blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
+        blockData?.area_acres,
+        feature.get('isSelected') || false
+      );
     });
-  }, [transparency, selectedColor, mapReady, updateFeatureStyle]);
+  }, [transparency, selectedColor, printMode, mapReady, updateFeatureStyle]);
 
   return (
     <div className="relative w-full h-full">
