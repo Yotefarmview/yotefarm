@@ -164,7 +164,7 @@ const MapControls: React.FC<MapControlsProps> = ({
         </Button>
       </div>
 
-      {/* Ferramentas de Desenho */}
+      {/* Ferramentas de Desenho e Filtro */}
       <div className="space-y-3">
         <h4 className="text-sm font-medium text-gray-700">Ferramentas</h4>
         
@@ -199,52 +199,52 @@ const MapControls: React.FC<MapControlsProps> = ({
             Deletar
           </Button>
         </div>
-      </div>
 
-      {/* Filtro de Cores */}
-      {onColorVisibilityChange && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-              <Filter className="w-4 h-4" />
-              Filtro de Cores
-            </h4>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleAllColors}
-              className="text-xs px-2 py-1 h-6"
-            >
-              {visibleColors.length === colors.length ? 'Ocultar Todas' : 'Mostrar Todas'}
-            </Button>
-          </div>
-          
-          <div className="space-y-2 max-h-48 overflow-y-auto">
-            {colors.map((color) => (
-              <div key={color.value} className="flex items-center space-x-3">
-                <Checkbox
-                  id={`color-${color.value}`}
-                  checked={visibleColors.includes(color.value)}
-                  onCheckedChange={(checked) => handleColorVisibilityToggle(color.value, !!checked)}
-                />
-                <div className="flex items-center gap-2 flex-1">
-                  <div 
-                    className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0"
-                    style={{ backgroundColor: color.value }}
+        {/* Filtro de Cores - Agora junto com as ferramentas */}
+        {onColorVisibilityChange && (
+          <div className="space-y-3 border-t pt-3">
+            <div className="flex items-center justify-between">
+              <h5 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+                <Filter className="w-4 h-4" />
+                Filtro de Cores
+              </h5>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleAllColors}
+                className="text-xs px-2 py-1 h-6"
+              >
+                {visibleColors.length === colors.length ? 'Ocultar Todas' : 'Mostrar Todas'}
+              </Button>
+            </div>
+            
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {colors.map((color) => (
+                <div key={color.value} className="flex items-center space-x-3">
+                  <Checkbox
+                    id={`color-${color.value}`}
+                    checked={visibleColors.includes(color.value)}
+                    onCheckedChange={(checked) => handleColorVisibilityToggle(color.value, !!checked)}
                   />
-                  <Label 
-                    htmlFor={`color-${color.value}`}
-                    className="text-sm cursor-pointer flex-1"
-                  >
-                    <span className="font-medium">{color.label}</span>
-                    <span className="text-xs text-gray-500 ml-1">({color.name})</span>
-                  </Label>
+                  <div className="flex items-center gap-2 flex-1">
+                    <div 
+                      className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0"
+                      style={{ backgroundColor: color.value }}
+                    />
+                    <Label 
+                      htmlFor={`color-${color.value}`}
+                      className="text-sm cursor-pointer flex-1"
+                    >
+                      <span className="font-medium">{color.label}</span>
+                      <span className="text-xs text-gray-500 ml-1">({color.name})</span>
+                    </Label>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Configurações de Cor */}
       <div className="space-y-3">
