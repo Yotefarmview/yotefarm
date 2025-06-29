@@ -62,6 +62,7 @@ interface AdvancedMapComponentProps {
   onBlockSelect: (block: any) => void;
   centerCoordinates?: [number, number];
   boundingBox?: [number, number, number, number];
+  visibleColors?: string[];
 }
 
 const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
@@ -78,7 +79,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   onBlockDelete,
   onBlockSelect,
   centerCoordinates,
-  boundingBox
+  boundingBox,
+  visibleColors = []
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Map | null>(null);
@@ -605,7 +607,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           feature.set('blockData', block);
           feature.set('isSelected', false);
           
-          console.log('Adding block to map:', block.id, block.nome, 'transparency:', block.transparencia !== undefined ? block.transparencia : transparency);
+          // Check if this block's color should be visible
+          const shouldBeVisible = visibleColors.length === 0 || visibleColors.includes(block.cor);
+          feature.setStyle(shouldBeVisible ? undefined : new Style({})); // Empty style hides the feature
+          
+          console.log('Adding block to map:', block.id, block.nome, 'transparency:', block.transparencia !== undefined ? block.transparencia : transparency, 'visible:', shouldBeVisible);
           
           vectorSource.current!.addFeature(feature);
         } catch (error) {
@@ -613,7 +619,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }
       }
     });
-  }, [blocks, mapReady, transparency]);
+  }, [blocks, mapReady, transparency, visibleColors]);
 
   // Atualizar visibilidade das camadas
   useEffect(() => {
@@ -1050,27 +1056,35 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     </div>
   );
 
-  // Update all existing blocks when global transparency changes
+  // Update all existing blocks when color visibility changes
   useEffect(() => {
     if (!vectorSource.current || !mapReady) return;
 
-    console.log('Updating transparency for all blocks:', transparency);
+    console.log('Updating color visibility:', visibleColors);
     
     vectorSource.current.getFeatures().forEach(feature => {
       const blockData = feature.get('blockData');
-      // Only update blocks that don't have their own custom transparency
-      if (blockData && blockData.transparencia === undefined) {
-        updateFeatureStyle(
-          feature,
-          blockData.nome || feature.get('name') || '',
-          blockData.cor || feature.get('color') || selectedColor,
-          transparency, // Use global transparency
-          blockData.area_acres,
-          feature.get('isSelected') || false
-        );
+      if (blockData) {
+        const shouldBeVisible = visibleColors.length === 0 || visibleColors.includes(blockData.cor);
+        
+        if (shouldBeVisible) {
+          // Reset to normal style
+          const isSelected = feature.get('isSelected') || false;
+          updateFeatureStyle(
+            feature,
+            blockData.nome || feature.get('name') || '',
+            blockData.cor || feature.get('color') || selectedColor,
+            blockData.transparencia !== undefined ? blockData.transparencia : transparency,
+            blockData.area_acres,
+            isSelected
+          );
+        } else {
+          // Hide the feature
+          feature.setStyle(new Style({}));
+        }
       }
     });
-  }, [transparency, selectedColor, mapReady, updateFeatureStyle]);
+  }, [visibleColors, mapReady, updateFeatureStyle, selectedColor, transparency]);
 
   return (
     <div className="relative w-full h-full">
