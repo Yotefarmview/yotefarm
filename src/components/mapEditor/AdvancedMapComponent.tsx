@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, FeatureGroup, Polygon, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from "@/components/ui/use-toast"
+import * as L from 'leaflet';
 
 import ColorFilterDropdown from './ColorFilterDropdown';
 
@@ -27,22 +29,44 @@ interface MapBlock {
 }
 
 interface AdvancedMapComponentProps {
-  fazendaId: string;
-  onBlocksChange: (blocks: MapBlock[]) => void;
+  blocks?: any[];
+  selectedColor?: string;
+  transparency?: number;
+  showSatellite?: boolean;
+  showBackground?: boolean;
+  printMode?: boolean;
+  showNDVI?: boolean;
+  drawingMode?: 'polygon' | 'edit' | 'delete' | null;
+  onPolygonDrawn?: (blockData: any) => void;
+  onBlockUpdate?: (blockId: string, updates: any) => void;
+  onBlockDelete?: (blockId: string) => void;
+  onBlockSelect?: (block: any) => void;
+  centerCoordinates?: [number, number];
+  boundingBox?: [number, number, number, number];
+  fazendaId?: string;
+  onBlocksChange?: (blocks: MapBlock[]) => void;
 }
 
 const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
-  fazendaId,
+  blocks: externalBlocks = [],
+  selectedColor = '#10B981',
+  transparency = 0.2,
+  showSatellite = false,
+  showBackground = true,
+  printMode = false,
+  showNDVI = false,
+  drawingMode = null,
+  onPolygonDrawn,
+  onBlockUpdate,
+  onBlockDelete,
+  onBlockSelect,
+  centerCoordinates,
+  boundingBox,
+  fazendaId = 'default',
   onBlocksChange
 }) => {
   const [blocks, setBlocks] = useState<MapBlock[]>([]);
-  const [drawingMode, setDrawingMode] = useState<'polygon' | 'edit' | 'delete' | null>(null);
-  const [selectedColor, setSelectedColor] = useState('#10B981');
-  const [transparency, setTransparency] = useState(0.2);
-  const [showSatellite, setShowSatellite] = useState(false);
-  const [showNDVI, setShowNDVI] = useState(false);
-  const [isPrintMode, setIsPrintMode] = useState(false);
-  const [mapCenter, setMapCenter] = useState([-23.5505, -46.6333]); // São Paulo coordinates
+  const [mapCenter, setMapCenter] = useState<[number, number]>([-23.5505, -46.6333]); // São Paulo coordinates
   const [visibleColors, setVisibleColors] = useState<string[]>([]);
   const mapRef = useRef<L.Map | null>(null);
   const featureGroupRef = useRef<L.FeatureGroup | null>(null);
@@ -59,7 +83,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   // Save blocks to localStorage whenever blocks change
   useEffect(() => {
     localStorage.setItem(`mapBlocks-${fazendaId}`, JSON.stringify(blocks));
-    onBlocksChange(blocks);
+    if (onBlocksChange) {
+      onBlocksChange(blocks);
+    }
   }, [blocks, fazendaId, onBlocksChange]);
 
   const onCreate = (e: any) => {
@@ -74,6 +100,14 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         transparency: transparency,
       };
       setBlocks([...blocks, newBlock]);
+      
+      if (onPolygonDrawn) {
+        onPolygonDrawn({
+          coordinates: polygon,
+          color: selectedColor,
+          transparency: transparency
+        });
+      }
     }
   };
 
@@ -88,6 +122,10 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
             block.id === id ? { ...block, polygon: polygon } : block
           )
         );
+        
+        if (onBlockUpdate) {
+          onBlockUpdate(id, { coordinates: polygon });
+        }
       }
     });
   };
@@ -98,6 +136,10 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       const id = layer.feature ? layer.feature.properties.id : null;
       if (id) {
         setBlocks(prevBlocks => prevBlocks.filter(block => block.id !== id));
+        
+        if (onBlockDelete) {
+          onBlockDelete(id);
+        }
       }
     });
   };
@@ -154,7 +196,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         <Button
           variant={drawingMode === 'polygon' ? "default" : "outline"}
           size="sm"
-          onClick={() => setDrawingMode(drawingMode === 'polygon' ? null : 'polygon')}
+          onClick={() => {}}
           className="flex items-center gap-2"
         >
           <Square className="w-4 h-4" />
@@ -169,7 +211,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         <Button
           variant={drawingMode === 'edit' ? "default" : "outline"}
           size="sm"
-          onClick={() => setDrawingMode(drawingMode === 'edit' ? null : 'edit')}
+          onClick={() => {}}
           className="flex items-center gap-2"
         >
           <Edit3 className="w-4 h-4" />
@@ -179,7 +221,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         <Button
           variant={drawingMode === 'delete' ? "destructive" : "outline"}
           size="sm"
-          onClick={() => setDrawingMode(drawingMode === 'delete' ? null : 'delete')}
+          onClick={() => {}}
           className="flex items-center gap-2"
         >
           <Trash2 className="w-4 h-4" />
@@ -191,7 +233,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         <Button
           variant={showSatellite ? "default" : "outline"}
           size="sm"
-          onClick={() => setShowSatellite(!showSatellite)}
+          onClick={() => {}}
           className="flex items-center gap-2"
         >
           {showSatellite ? <Satellite className="w-4 h-4" /> : <Map className="w-4 h-4" />}
@@ -201,7 +243,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         <Button
           variant={showNDVI ? "default" : "outline"}
           size="sm"
-          onClick={() => setShowNDVI(!showNDVI)}
+          onClick={() => {}}
           className="flex items-center gap-2"
         >
           <Layers className="w-4 h-4" />
@@ -222,11 +264,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setIsPrintMode(!isPrintMode)}
+            onClick={() => {}}
             className="flex items-center gap-2"
           >
             <Printer className="w-4 h-4" />
-            {isPrintMode ? 'Sair da Impressão' : 'Modo Impressão'}
+            {printMode ? 'Sair da Impressão' : 'Modo Impressão'}
           </Button>
         </div>
       </div>
@@ -270,50 +312,54 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
               // @ts-ignore
               _onFeatureGroupReady={onFeatureGroupReady}
             />
-            {blocks.map(block => (
-              <Polygon
-                key={block.id}
-                positions={block.polygon.map(coord => [coord[0], coord[1]])}
-                color={block.color}
-                fillOpacity={block.transparency}
-                fill={true}
-                // @ts-ignore
-                weight={isPrintMode ? 1 : 2}
-                opacity={isPrintMode ? 0.5 : 1}
-                // Add a unique class name to each polygon
-                className={`polygon-${block.id}`}
-                // Pass the block id as a property to the layer
-                // @ts-ignore
-                feature={{ properties: { id: block.id } }}
-                eventHandlers={{
-                  mouseover: (e) => {
-                    // @ts-ignore
-                    if (drawingMode === 'delete') {
+            {blocks
+              .filter(block => visibleColors.length === 0 || visibleColors.includes(block.color))
+              .map(block => (
+                <Polygon
+                  key={block.id}
+                  positions={block.polygon.map(coord => [coord[0], coord[1]])}
+                  color={block.color}
+                  fillOpacity={block.transparency}
+                  fill={true}
+                  // @ts-ignore
+                  weight={printMode ? 1 : 2}
+                  opacity={printMode ? 0.5 : 1}
+                  // Add a unique class name to each polygon
+                  className={`polygon-${block.id}`}
+                  // Pass the block id as a property to the layer
+                  // @ts-ignore
+                  feature={{ properties: { id: block.id } }}
+                  eventHandlers={{
+                    mouseover: (e) => {
                       // @ts-ignore
-                      e.target.setStyle({ fillColor: 'red', color: 'red' });
-                    }
-                  },
-                  mouseout: (e) => {
-                    // @ts-ignore
-                    if (drawingMode === 'delete') {
+                      if (drawingMode === 'delete') {
+                        // @ts-ignore
+                        e.target.setStyle({ fillColor: 'red', color: 'red' });
+                      }
+                    },
+                    mouseout: (e) => {
                       // @ts-ignore
-                      e.target.setStyle({ fillColor: block.color, color: block.color });
-                    }
-                  },
-                  click: (e) => {
-                    // @ts-ignore
-                    if (drawingMode === 'delete') {
+                      if (drawingMode === 'delete') {
+                        // @ts-ignore
+                        e.target.setStyle({ fillColor: block.color, color: block.color });
+                      }
+                    },
+                    click: (e) => {
                       // @ts-ignore
-                      const id = e.target.feature.properties.id;
-                      setBlocks(prevBlocks => prevBlocks.filter(block => block.id !== id));
+                      if (drawingMode === 'delete') {
+                        // @ts-ignore
+                        const id = e.target.feature.properties.id;
+                        setBlocks(prevBlocks => prevBlocks.filter(block => block.id !== id));
+                        if (onBlockDelete) {
+                          onBlockDelete(id);
+                        }
+                      } else if (onBlockSelect) {
+                        onBlockSelect(block);
+                      }
                     }
-                  }
-                }}
-                // filter function to control visibility
-                // @ts-ignore
-                filter={() => visibleColors.length === 0 || visibleColors.includes(block.color)}
-              />
-            ))}
+                  }}
+                />
+              ))}
           </FeatureGroup>
         </MapContainer>
       </div>
