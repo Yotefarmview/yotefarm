@@ -62,6 +62,7 @@ interface AdvancedMapComponentProps {
   onBlockSelect: (block: any) => void;
   centerCoordinates?: [number, number];
   boundingBox?: [number, number, number, number];
+  visibleColors: string[];
 }
 
 const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
@@ -78,7 +79,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   onBlockDelete,
   onBlockSelect,
   centerCoordinates,
-  boundingBox
+  boundingBox,
+  visibleColors
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Map | null>(null);
@@ -580,18 +582,25 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
   }, []);
 
-  // Carregar blocos existentes
+  // Carregar blocos existentes - now with color filtering
   useEffect(() => {
     if (!vectorSource.current || !mapReady) return;
 
-    console.log('Carregando blocos:', blocks.length);
+    console.log('Carregando blocos:', blocks.length, 'cores visíveis:', visibleColors);
 
     // Limpar blocos existentes
     vectorSource.current.clear();
 
-    // Carregar novos blocos
+    // Carregar novos blocos - apenas os com cores visíveis
     blocks.forEach(block => {
       if (block.coordenadas) {
+        // Verificar se a cor do bloco está nas cores visíveis
+        const blockColor = block.cor || '#10B981';
+        if (!visibleColors.includes(blockColor)) {
+          console.log('Bloco oculto por filtro de cor:', block.nome, blockColor);
+          return; // Pular este bloco
+        }
+
         try {
           let coordinates;
           if (typeof block.coordenadas === 'string') {
@@ -623,7 +632,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }
       }
     });
-  }, [blocks, mapReady, transparency]);
+  }, [blocks, mapReady, transparency, visibleColors]);
 
   // Atualizar visibilidade das camadas
   useEffect(() => {

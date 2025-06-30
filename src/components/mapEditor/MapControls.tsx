@@ -12,11 +12,13 @@ import {
   Palette,
   Square,
   Edit3,
-  Trash2
+  Trash2,
+  Ruler
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface MapControlsProps {
   showSatellite: boolean;
@@ -31,9 +33,11 @@ interface MapControlsProps {
   onColorChange: (color: string) => void;
   transparency: number;
   onTransparencyChange: (value: number) => void;
-  drawingMode: 'polygon' | 'edit' | 'delete' | null;
-  onDrawingModeChange: (mode: 'polygon' | 'edit' | 'delete' | null) => void;
+  drawingMode: 'polygon' | 'edit' | 'delete' | 'measure' | null;
+  onDrawingModeChange: (mode: 'polygon' | 'edit' | 'delete' | 'measure' | null) => void;
   onCenterMap: () => void;
+  visibleColors: string[];
+  onVisibleColorsChange: (colors: string[]) => void;
 }
 
 const MapControls: React.FC<MapControlsProps> = ({
@@ -51,7 +55,9 @@ const MapControls: React.FC<MapControlsProps> = ({
   onTransparencyChange,
   drawingMode,
   onDrawingModeChange,
-  onCenterMap
+  onCenterMap,
+  visibleColors,
+  onVisibleColorsChange
 }) => {
   const { t } = useTranslation();
 
@@ -66,6 +72,24 @@ const MapControls: React.FC<MapControlsProps> = ({
     { value: '#EC4899', label: 'Rosa', name: 'Teste' },
     { value: '#06B6D4', label: 'Turquesa', name: 'Dreno' }
   ];
+
+  const handleColorVisibilityChange = (color: string, isVisible: boolean) => {
+    if (isVisible) {
+      onVisibleColorsChange([...visibleColors, color]);
+    } else {
+      onVisibleColorsChange(visibleColors.filter(c => c !== color));
+    }
+  };
+
+  const toggleAllColors = () => {
+    if (visibleColors.length === colors.length) {
+      // Se todas estão selecionadas, desselecionar todas
+      onVisibleColorsChange([]);
+    } else {
+      // Se nem todas estão selecionadas, selecionar todas
+      onVisibleColorsChange(colors.map(c => c.value));
+    }
+  };
 
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 space-y-4">
@@ -136,7 +160,7 @@ const MapControls: React.FC<MapControlsProps> = ({
       <div className="space-y-3">
         <h4 className="text-sm font-medium text-gray-700">Ferramentas</h4>
         
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <Button
             variant={drawingMode === 'polygon' ? "default" : "outline"}
             size="sm"
@@ -156,7 +180,9 @@ const MapControls: React.FC<MapControlsProps> = ({
             <Edit3 className="w-4 h-4" />
             Editar
           </Button>
+        </div>
 
+        <div className="grid grid-cols-2 gap-2">
           <Button
             variant={drawingMode === 'delete' ? "destructive" : "outline"}
             size="sm"
@@ -166,21 +192,74 @@ const MapControls: React.FC<MapControlsProps> = ({
             <Trash2 className="w-4 h-4" />
             Deletar
           </Button>
+
+          <Button
+            variant={drawingMode === 'measure' ? "default" : "outline"}
+            size="sm"
+            onClick={() => onDrawingModeChange(drawingMode === 'measure' ? null : 'measure')}
+            className="flex items-center gap-2"
+          >
+            <Ruler className="w-4 h-4" />
+            Medir
+          </Button>
         </div>
       </div>
 
-      {/* Configurações de Cor */}
+      {/* Seleção de Cores Visíveis */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+            <Layers className="w-4 h-4" />
+            Camadas por Cor
+          </h4>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleAllColors}
+            className="text-xs px-2 py-1"
+          >
+            {visibleColors.length === colors.length ? 'Ocultar Todas' : 'Mostrar Todas'}
+          </Button>
+        </div>
+        
+        <div className="space-y-2 max-h-48 overflow-y-auto">
+          {colors.map((color) => (
+            <div key={color.value} className="flex items-center space-x-3">
+              <Checkbox
+                id={`color-${color.value}`}
+                checked={visibleColors.includes(color.value)}
+                onCheckedChange={(checked) => 
+                  handleColorVisibilityChange(color.value, !!checked)
+                }
+              />
+              <div 
+                className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0"
+                style={{ backgroundColor: color.value }}
+              />
+              <label 
+                htmlFor={`color-${color.value}`}
+                className="text-sm cursor-pointer flex-1"
+              >
+                <span className="font-medium">{color.label}</span>
+                <span className="text-xs text-gray-500 ml-2">{color.name}</span>
+              </label>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Cor para Desenho */}
       <div className="space-y-3">
         <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
           <Palette className="w-4 h-4" />
-          Cor do Bloco
+          Cor para Desenho
         </h4>
         
         <Select value={selectedColor} onValueChange={onColorChange}>
           <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="bg-white border shadow-lg z-50">
             {colors.map((color) => (
               <SelectItem key={color.value} value={color.value}>
                 <div className="flex items-center gap-3">
