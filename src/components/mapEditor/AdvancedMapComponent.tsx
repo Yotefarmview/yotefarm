@@ -62,6 +62,7 @@ interface AdvancedMapComponentProps {
   onBlockSelect: (block: any) => void;
   centerCoordinates?: [number, number];
   boundingBox?: [number, number, number, number];
+  visibleColors: string[];
 }
 
 const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
@@ -78,7 +79,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   onBlockDelete,
   onBlockSelect,
   centerCoordinates,
-  boundingBox
+  boundingBox,
+  visibleColors
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Map | null>(null);
@@ -580,18 +582,18 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
   }, []);
 
-  // Carregar blocos existentes
+  // Carregar blocos existentes - agora com filtro de cores
   useEffect(() => {
     if (!vectorSource.current || !mapReady) return;
 
-    console.log('Carregando blocos:', blocks.length);
+    console.log('Carregando blocos:', blocks.length, 'cores visíveis:', visibleColors);
 
     // Limpar blocos existentes
     vectorSource.current.clear();
 
-    // Carregar novos blocos
+    // Carregar novos blocos - apenas os com cores visíveis
     blocks.forEach(block => {
-      if (block.coordenadas) {
+      if (block.coordenadas && visibleColors.includes(block.cor)) {
         try {
           let coordinates;
           if (typeof block.coordenadas === 'string') {
@@ -615,7 +617,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           feature.set('blockData', block);
           feature.set('isSelected', false);
           
-          console.log('Adding block to map:', block.id, block.nome, 'transparency:', block.transparencia !== undefined ? block.transparencia : transparency);
+          console.log('Adding visible block to map:', block.id, block.nome, 'color:', block.cor);
           
           vectorSource.current!.addFeature(feature);
         } catch (error) {
@@ -623,7 +625,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }
       }
     });
-  }, [blocks, mapReady, transparency]);
+  }, [blocks, mapReady, transparency, visibleColors]);
 
   // Atualizar visibilidade das camadas
   useEffect(() => {
