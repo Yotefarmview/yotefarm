@@ -582,7 +582,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     }
   }, []);
 
-  // Carregar blocos existentes - now with color filtering
+  // Carregar blocos existentes - agora com filtro de cores
   useEffect(() => {
     if (!vectorSource.current || !mapReady) return;
 
@@ -593,14 +593,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
     // Carregar novos blocos - apenas os com cores visíveis
     blocks.forEach(block => {
-      if (block.coordenadas) {
-        // Verificar se a cor do bloco está nas cores visíveis
-        const blockColor = block.cor || '#10B981';
-        if (!visibleColors.includes(blockColor)) {
-          console.log('Bloco oculto por filtro de cor:', block.nome, blockColor);
-          return; // Pular este bloco
-        }
-
+      if (block.coordenadas && visibleColors.includes(block.cor)) {
         try {
           let coordinates;
           if (typeof block.coordenadas === 'string') {
@@ -624,7 +617,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           feature.set('blockData', block);
           feature.set('isSelected', false);
           
-          console.log('Adding block to map:', block.id, block.nome, 'transparency:', block.transparencia !== undefined ? block.transparencia : transparency);
+          console.log('Adding visible block to map:', block.id, block.nome, 'color:', block.cor);
           
           vectorSource.current!.addFeature(feature);
         } catch (error) {

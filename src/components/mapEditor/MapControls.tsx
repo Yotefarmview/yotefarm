@@ -12,13 +12,12 @@ import {
   Palette,
   Square,
   Edit3,
-  Trash2,
-  Ruler
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
 
 interface MapControlsProps {
   showSatellite: boolean;
@@ -33,8 +32,8 @@ interface MapControlsProps {
   onColorChange: (color: string) => void;
   transparency: number;
   onTransparencyChange: (value: number) => void;
-  drawingMode: 'polygon' | 'edit' | 'delete' | 'measure' | null;
-  onDrawingModeChange: (mode: 'polygon' | 'edit' | 'delete' | 'measure' | null) => void;
+  drawingMode: 'polygon' | 'edit' | 'delete' | null;
+  onDrawingModeChange: (mode: 'polygon' | 'edit' | 'delete' | null) => void;
   onCenterMap: () => void;
   visibleColors: string[];
   onVisibleColorsChange: (colors: string[]) => void;
@@ -73,21 +72,11 @@ const MapControls: React.FC<MapControlsProps> = ({
     { value: '#06B6D4', label: 'Turquesa', name: 'Dreno' }
   ];
 
-  const handleColorVisibilityChange = (color: string, isVisible: boolean) => {
-    if (isVisible) {
+  const handleColorVisibilityChange = (color: string, checked: boolean) => {
+    if (checked) {
       onVisibleColorsChange([...visibleColors, color]);
     } else {
       onVisibleColorsChange(visibleColors.filter(c => c !== color));
-    }
-  };
-
-  const toggleAllColors = () => {
-    if (visibleColors.length === colors.length) {
-      // Se todas estão selecionadas, desselecionar todas
-      onVisibleColorsChange([]);
-    } else {
-      // Se nem todas estão selecionadas, selecionar todas
-      onVisibleColorsChange(colors.map(c => c.value));
     }
   };
 
@@ -160,7 +149,7 @@ const MapControls: React.FC<MapControlsProps> = ({
       <div className="space-y-3">
         <h4 className="text-sm font-medium text-gray-700">Ferramentas</h4>
         
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <Button
             variant={drawingMode === 'polygon' ? "default" : "outline"}
             size="sm"
@@ -180,9 +169,7 @@ const MapControls: React.FC<MapControlsProps> = ({
             <Edit3 className="w-4 h-4" />
             Editar
           </Button>
-        </div>
 
-        <div className="grid grid-cols-2 gap-2">
           <Button
             variant={drawingMode === 'delete' ? "destructive" : "outline"}
             size="sm"
@@ -192,104 +179,79 @@ const MapControls: React.FC<MapControlsProps> = ({
             <Trash2 className="w-4 h-4" />
             Deletar
           </Button>
-
-          <Button
-            variant={drawingMode === 'measure' ? "default" : "outline"}
-            size="sm"
-            onClick={() => onDrawingModeChange(drawingMode === 'measure' ? null : 'measure')}
-            className="flex items-center gap-2"
-          >
-            <Ruler className="w-4 h-4" />
-            Medir
-          </Button>
         </div>
       </div>
 
-      {/* Seleção de Cores Visíveis */}
+      {/* Seleção de Cor para Desenho */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-            <Layers className="w-4 h-4" />
-            Camadas por Cor
-          </h4>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={toggleAllColors}
-            className="text-xs px-2 py-1"
-          >
-            {visibleColors.length === colors.length ? 'Ocultar Todas' : 'Mostrar Todas'}
-          </Button>
-        </div>
+        <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+          <Palette className="w-4 h-4" />
+          Cor para Desenhar
+        </h4>
         
-        <div className="space-y-2 max-h-48 overflow-y-auto">
+        <div className="grid grid-cols-3 gap-2">
+          {colors.map((color) => (
+            <button
+              key={color.value}
+              onClick={() => onColorChange(color.value)}
+              className={`p-2 rounded border-2 transition-all ${
+                selectedColor === color.value 
+                  ? 'border-gray-900 ring-2 ring-gray-300' 
+                  : 'border-gray-300 hover:border-gray-400'
+              }`}
+              style={{ backgroundColor: color.value }}
+              title={`${color.label} - ${color.name}`}
+            >
+              <span className="sr-only">{color.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Layers de Cores Visíveis */}
+      <div className="space-y-3">
+        <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
+          <Layers className="w-4 h-4" />
+          Layers Visíveis
+        </h4>
+        
+        <div className="space-y-2 max-h-40 overflow-y-auto">
           {colors.map((color) => (
             <div key={color.value} className="flex items-center space-x-3">
               <Checkbox
                 id={`color-${color.value}`}
                 checked={visibleColors.includes(color.value)}
-                onCheckedChange={(checked) => 
-                  handleColorVisibilityChange(color.value, !!checked)
-                }
+                onCheckedChange={(checked) => handleColorVisibilityChange(color.value, !!checked)}
               />
               <div 
-                className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0"
+                className="w-4 h-4 rounded border border-gray-300"
                 style={{ backgroundColor: color.value }}
               />
-              <label 
+              <Label 
                 htmlFor={`color-${color.value}`}
-                className="text-sm cursor-pointer flex-1"
+                className="text-xs cursor-pointer flex-1"
               >
                 <span className="font-medium">{color.label}</span>
-                <span className="text-xs text-gray-500 ml-2">{color.name}</span>
-              </label>
+                <span className="text-gray-500 ml-1">{color.name}</span>
+              </Label>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Cor para Desenho */}
-      <div className="space-y-3">
-        <h4 className="text-sm font-medium text-gray-700 flex items-center gap-2">
-          <Palette className="w-4 h-4" />
-          Cor para Desenho
-        </h4>
-        
-        <Select value={selectedColor} onValueChange={onColorChange}>
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent className="bg-white border shadow-lg z-50">
-            {colors.map((color) => (
-              <SelectItem key={color.value} value={color.value}>
-                <div className="flex items-center gap-3">
-                  <div 
-                    className="w-4 h-4 rounded-full border border-gray-300"
-                    style={{ backgroundColor: color.value }}
-                  />
-                  <div>
-                    <span className="font-medium">{color.label}</span>
-                    <span className="text-xs text-gray-500 ml-2">{color.name}</span>
-                  </div>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <div className="space-y-2">
-          <label className="text-xs text-gray-600">
-            Transparência: {Math.round((1 - transparency) * 100)}%
-          </label>
-          <Slider
-            value={[transparency]}
-            onValueChange={(value) => onTransparencyChange(value[0])}
-            max={1}
-            min={0}
-            step={0.01}
-            className="w-full"
-          />
-        </div>
+      {/* Transparência */}
+      <div className="space-y-2">
+        <label className="text-xs text-gray-600">
+          Transparência: {Math.round((1 - transparency) * 100)}%
+        </label>
+        <Slider
+          value={[transparency]}
+          onValueChange={(value) => onTransparencyChange(value[0])}
+          max={1}
+          min={0}
+          step={0.01}
+          className="w-full"
+        />
       </div>
     </div>
   );
