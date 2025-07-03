@@ -58,7 +58,7 @@ const AdvancedMapEditor: React.FC = () => {
   const [showNDVI, setShowNDVI] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#10B981');
   const [transparency, setTransparency] = useState(0.4);
-  const [drawingMode, setDrawingMode] = useState<'polygon' | 'edit' | 'delete' | 'measure' | null>(null);
+  const [drawingMode, setDrawingMode] = useState<'polygon' | 'edit' | 'delete' | 'measure' | 'multiselect' | null>(null);
   
   // Location states
   const [centerCoordinates, setCenterCoordinates] = useState<[number, number] | undefined>();
@@ -1103,7 +1103,7 @@ CAMPOS DOS DADOS:
               </div>
               
               {/* Map Controls - Responsive Grid */}
-              <div className="flex flex-wrap items-center gap-2 justify-between">
+              <div className="flex flex-wrap items-center gap-2 justify-between" id="menu_ferramentas">
                 {/* View Controls */}
                 <div className="flex flex-wrap items-center gap-2">
                   <Button
@@ -1163,6 +1163,15 @@ CAMPOS DOS DADOS:
                     className="text-xs px-2 py-1 h-8 min-w-[55px]"
                   >
                     Deletar
+                  </Button>
+
+                  <Button
+                    variant={drawingMode === 'multiselect' ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setDrawingMode(drawingMode === 'multiselect' ? null : 'multiselect')}
+                    className="text-xs px-2 py-1 h-8 min-w-[80px]"
+                  >
+                    Multiseleção
                   </Button>
                 </div>
 
