@@ -115,6 +115,33 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     { value: '#06B6D4', label: 'Turquesa', name: 'Dreno' }
   ];
 
+  // Add keyboard event listeners for Shift detection
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') {
+        setIsShiftPressed(true);
+        console.log('Shift pressed - multiselect enabled');
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') {
+        setIsShiftPressed(false);
+        console.log('Shift released - multiselect disabled');
+      }
+    };
+
+    // Add event listeners to document
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keyup', handleKeyUp);
+
+    // Cleanup
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
+
   // Criar estilo para blocos com nome como legenda e área (apenas acres)
   const createBlockStyle = useCallback((color: string, transparency: number, name?: string, area_acres?: number, isSelected?: boolean) => {
     const displayText = name ? `${name}\n${area_acres?.toFixed(1) || 0} acres` : '';
@@ -253,13 +280,14 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   }, [updateFeatureStyle, transparency]);
 
   // Handle block selection for editing
-  const handleBlockClick = useCallback((feature: Feature, event?: any) => {
-    console.log('Block clicked:', feature.get('blockId'));
+  const handleBlockClick = useCallback((feature: Feature, originalEvent?: Event) => {
+    console.log('Block clicked:', feature.get('blockId'), 'Shift pressed:', isShiftPressed, 'Drawing mode:', drawingMode);
     
     // Check if Shift is pressed or if we're in multiselect mode
-    const isMultiSelectMode = drawingMode === 'multiselect' || (isShiftPressed && event);
+    const isMultiSelectMode = drawingMode === 'multiselect' || isShiftPressed;
     
     if (isMultiSelectMode) {
+      console.log('Multi-select mode active');
       const isSelected = selectedFeatures.includes(feature);
       let newSelectedFeatures: Feature[];
       
@@ -275,6 +303,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           blockData?.area_acres,
           false
         );
+        console.log('Block deselected from multi-selection');
       } else {
         // Add to selection
         newSelectedFeatures = [...selectedFeatures, feature];
@@ -287,9 +316,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           blockData?.area_acres,
           true
         );
+        console.log('Block added to multi-selection');
       }
       
       setSelectedFeatures(newSelectedFeatures);
+      console.log('Total selected features:', newSelectedFeatures.length);
       
       // Update multiEditForm if blocks are selected
       if (newSelectedFeatures.length > 0) {
@@ -661,19 +692,25 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         }),
       });
 
-      // Add click event for feature selection
+      // Add click event for feature selection with improved handling
       map.on('click', (event) => {
+        console.log('Map click event', event);
+        
         const feature = map.forEachFeatureAtPixel(event.pixel, (feature) => {
           return feature instanceof Feature ? feature : null;
         });
         
         if (feature) {
+          console.log('Feature found at click:', feature.get('blockId') || feature.get('measurementId'));
+          
           if (feature.get('blockData')) {
+            // Pass the original event to check for modifier keys
             handleBlockClick(feature, event.originalEvent);
           } else if (feature.get('measurementData')) {
             handleMeasurementClick(feature);
           }
         } else {
+          console.log('No feature found at click position');
           // Clicked on empty area, clear selection if not in multiselect mode and not holding Shift
           if (drawingMode !== 'multiselect' && !isShiftPressed) {
             clearAllSelections();
@@ -1211,7 +1248,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     </div>
   );
 
-  // Multi-select Edit Panel
+  // Multi-select Edit Panel with improved UI
   const multiEditPanel = selectedFeatures.length > 0 && (drawingMode === 'multiselect' || isShiftPressed) && (
     <div className="absolute top-4 right-4 z-50">
       <Card className="w-80 bg-white shadow-lg border">
@@ -1220,6 +1257,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
             <MousePointer2 className="w-5 h-5" />
             Multiseleção ({selectedFeatures.length} blocos)
           </CardTitle>
+          <div className="text-sm text-gray-600">
+            {isShiftPressed ? 'Modo: Shift + Clique' : 'Modo: Multiseleção Ativo'}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -1271,8 +1311,12 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
               {selectedFeatures.map((feature, index) => {
                 const blockData = feature.get('blockData');
                 return (
-                  <div key={index} className="text-sm text-blue-800">
-                    {blockData?.nome || `Bloco ${index + 1}`}
+                  <div key={index} className="text-sm text-blue-800 flex items-center justify-between">
+                    <span>{blockData?.nome || `Bloco ${index + 1}`}</span>
+                    <div 
+                      className="w-3 h-3 rounded-full border border-gray-300"
+                      style={{ backgroundColor: blockData?.cor || '#10B981' }}
+                    />
                   </div>
                 );
               })}
