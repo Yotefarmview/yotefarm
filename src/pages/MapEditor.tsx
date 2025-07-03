@@ -219,7 +219,7 @@ const MapEditor: React.FC = () => {
             showBackground={showBackground}
             onToggleBackground={() => setShowBackground(!showBackground)}
             printMode={printMode}
-            onTogglePrintMode={() => setShowPrintMode(!printMode)}
+            onTogglePrintMode={() => setPrintMode(!printMode)}
             showNDVI={showNDVI}
             onToggleNDVI={() => setShowNDVI(!showNDVI)}
             selectedColor={selectedColor}
@@ -228,11 +228,7 @@ const MapEditor: React.FC = () => {
             onTransparencyChange={setTransparency}
             drawingMode={drawingMode}
             onDrawingModeChange={setDrawingMode}
-            onCenterMap={() => {
-              if (centerCoordinates) {
-                setMapKey(prev => prev + 1);
-              }
-            }}
+            onCenterMap={handleCenterMap}
           />
         </motion.div>
 
