@@ -95,6 +95,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
   const [selectedFeatures, setSelectedFeatures] = useState<Feature[]>([]);
   const [multiEditForm, setMultiEditForm] = useState({ color: '#10B981', transparency: 0.4 });
+  const [isShiftPressed, setIsShiftPressed] = useState(false);
   
   // Measurement states
   const [editingMeasurement, setEditingMeasurement] = useState<MeasurementData | null>(null);
@@ -252,11 +253,13 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   }, [updateFeatureStyle, transparency]);
 
   // Handle block selection for editing
-  const handleBlockClick = useCallback((feature: Feature) => {
+  const handleBlockClick = useCallback((feature: Feature, event?: any) => {
     console.log('Block clicked:', feature.get('blockId'));
     
-    // Se estiver no modo multiseleção, toggle selection
-    if (drawingMode === 'multiselect') {
+    // Check if Shift is pressed or if we're in multiselect mode
+    const isMultiSelectMode = drawingMode === 'multiselect' || (isShiftPressed && event);
+    
+    if (isMultiSelectMode) {
       const isSelected = selectedFeatures.includes(feature);
       let newSelectedFeatures: Feature[];
       
@@ -300,7 +303,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       return;
     }
     
-    // Clear previous selections
+    // Clear previous selections for single selection
     clearAllSelections();
     
     const blockData = feature.get('blockData');
@@ -329,7 +332,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       onBlockSelect(blockData);
       console.log('Block selected for editing:', blockId, blockData.nome);
     }
-  }, [clearAllSelections, updateFeatureStyle, onBlockSelect, drawingMode, selectedFeatures]);
+  }, [clearAllSelections, updateFeatureStyle, onBlockSelect, drawingMode, selectedFeatures, isShiftPressed]);
 
   // Handle multiselect save
   const handleMultiSave = useCallback(() => {
@@ -666,13 +669,13 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         
         if (feature) {
           if (feature.get('blockData')) {
-            handleBlockClick(feature);
+            handleBlockClick(feature, event.originalEvent);
           } else if (feature.get('measurementData')) {
             handleMeasurementClick(feature);
           }
         } else {
-          // Clicked on empty area, clear selection if not in multiselect mode
-          if (drawingMode !== 'multiselect') {
+          // Clicked on empty area, clear selection if not in multiselect mode and not holding Shift
+          if (drawingMode !== 'multiselect' && !isShiftPressed) {
             clearAllSelections();
           }
         }
@@ -1209,7 +1212,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   );
 
   // Multi-select Edit Panel
-  const multiEditPanel = selectedFeatures.length > 0 && drawingMode === 'multiselect' && (
+  const multiEditPanel = selectedFeatures.length > 0 && (drawingMode === 'multiselect' || isShiftPressed) && (
     <div className="absolute top-4 right-4 z-50">
       <Card className="w-80 bg-white shadow-lg border">
         <CardHeader className="pb-3">
@@ -1306,7 +1309,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
           </div>
 
           <div className="text-xs text-gray-500 pt-2">
-            <strong>Dica:</strong> Clique nos blocos para selecioná-los ou deselecioná-los. Use Ctrl+Click para múltiplas seleções.
+            <strong>Dica:</strong> Segure <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Shift</kbd> + clique nos blocos para selecioná-los. Use o botão Multiseleção para modo contínuo.
           </div>
         </CardContent>
       </Card>
