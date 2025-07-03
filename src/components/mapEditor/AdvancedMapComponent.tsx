@@ -23,7 +23,7 @@ import { Select as UISelect, SelectContent, SelectItem, SelectTrigger, SelectVal
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
-import { Save, X, Edit2, Trash2, Ruler } from 'lucide-react';
+import { Save, X, Edit2, Trash2, Ruler, MousePointer2 } from 'lucide-react';
 import 'ol/ol.css';
 
 interface BlockData {
@@ -55,7 +55,7 @@ interface AdvancedMapComponentProps {
   showBackground: boolean;
   printMode: boolean;
   showNDVI: boolean;
-  drawingMode: 'polygon' | 'edit' | 'delete' | 'measure' | null;
+  drawingMode: 'polygon' | 'edit' | 'delete' | 'measure' | 'multiselect' | null;
   onPolygonDrawn: (blockData: BlockData) => void;
   onBlockUpdate: (blockId: string, updates: Partial<BlockData>) => void;
   onBlockDelete: (blockId: string) => void;
@@ -93,6 +93,8 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const [editForm, setEditForm] = useState({ name: '', color: '#10B981', transparency: 0.4 });
   const [mapReady, setMapReady] = useState(false);
   const [selectedFeature, setSelectedFeature] = useState<Feature | null>(null);
+  const [selectedFeatures, setSelectedFeatures] = useState<Feature[]>([]);
+  const [multiEditForm, setMultiEditForm] = useState({ color: '#10B981', transparency: 0.4 });
   
   // Measurement states
   const [editingMeasurement, setEditingMeasurement] = useState<MeasurementData | null>(null);
@@ -241,8 +243,10 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     });
     
     setSelectedFeature(null);
+    setSelectedFeatures([]);
     setEditingBlock(null);
     setEditForm({ name: '', color: '#10B981', transparency: 0.4 });
+    setMultiEditForm({ color: '#10B981', transparency: 0.4 });
     setEditingMeasurement(null);
     setMeasurementForm({ name: '', isDrain: false });
   }, [updateFeatureStyle, transparency]);
@@ -250,6 +254,51 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   // Handle block selection for editing
   const handleBlockClick = useCallback((feature: Feature) => {
     console.log('Block clicked:', feature.get('blockId'));
+    
+    // Se estiver no modo multiseleção, toggle selection
+    if (drawingMode === 'multiselect') {
+      const isSelected = selectedFeatures.includes(feature);
+      let newSelectedFeatures: Feature[];
+      
+      if (isSelected) {
+        // Remove from selection
+        newSelectedFeatures = selectedFeatures.filter(f => f !== feature);
+        const blockData = feature.get('blockData');
+        updateFeatureStyle(
+          feature,
+          blockData?.nome || '',
+          blockData?.cor || '#10B981',
+          blockData?.transparencia || 0.4,
+          blockData?.area_acres,
+          false
+        );
+      } else {
+        // Add to selection
+        newSelectedFeatures = [...selectedFeatures, feature];
+        const blockData = feature.get('blockData');
+        updateFeatureStyle(
+          feature,
+          blockData?.nome || '',
+          blockData?.cor || '#10B981',
+          blockData?.transparencia || 0.4,
+          blockData?.area_acres,
+          true
+        );
+      }
+      
+      setSelectedFeatures(newSelectedFeatures);
+      
+      // Update multiEditForm if blocks are selected
+      if (newSelectedFeatures.length > 0) {
+        const firstBlock = newSelectedFeatures[0].get('blockData');
+        setMultiEditForm({
+          color: firstBlock?.cor || '#10B981',
+          transparency: firstBlock?.transparencia || 0.4
+        });
+      }
+      
+      return;
+    }
     
     // Clear previous selections
     clearAllSelections();
@@ -280,7 +329,78 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       onBlockSelect(blockData);
       console.log('Block selected for editing:', blockId, blockData.nome);
     }
-  }, [clearAllSelections, updateFeatureStyle, onBlockSelect]);
+  }, [clearAllSelections, updateFeatureStyle, onBlockSelect, drawingMode, selectedFeatures]);
+
+  // Handle multiselect save
+  const handleMultiSave = useCallback(() => {
+    if (selectedFeatures.length === 0) return;
+
+    selectedFeatures.forEach(feature => {
+      const blockId = feature.get('blockId');
+      const blockData = feature.get('blockData');
+      
+      if (blockData && blockId) {
+        // Update the feature's style and properties
+        updateFeatureStyle(
+          feature,
+          blockData.nome || '',
+          multiEditForm.color,
+          multiEditForm.transparency,
+          blockData.area_acres,
+          false // Remove selection after save
+        );
+        
+        // Update the blockData stored in the feature
+        const updatedBlockData = {
+          ...blockData,
+          cor: multiEditForm.color,
+          transparencia: multiEditForm.transparency
+        };
+        feature.set('blockData', updatedBlockData);
+        
+        // Update in parent component
+        onBlockUpdate(blockId, {
+          color: multiEditForm.color,
+          cor: multiEditForm.color,
+          transparency: multiEditForm.transparency
+        });
+      }
+    });
+
+    // Force refresh of vector source
+    if (vectorSource.current) {
+      vectorSource.current.changed();
+    }
+
+    // Clear selections
+    setSelectedFeatures([]);
+    setMultiEditForm({ color: '#10B981', transparency: 0.4 });
+  }, [selectedFeatures, multiEditForm, onBlockUpdate, updateFeatureStyle]);
+
+  // Handle multiselect delete
+  const handleMultiDelete = useCallback(() => {
+    if (selectedFeatures.length === 0) return;
+
+    if (confirm(`Tem certeza que deseja deletar ${selectedFeatures.length} blocos selecionados?`)) {
+      selectedFeatures.forEach(feature => {
+        const blockId = feature.get('blockId');
+        
+        // Remove from vector source
+        if (vectorSource.current) {
+          vectorSource.current.removeFeature(feature);
+        }
+        
+        // Call parent delete function
+        onBlockDelete(blockId);
+      });
+      
+      // Clear selections
+      setSelectedFeatures([]);
+      setMultiEditForm({ color: '#10B981', transparency: 0.4 });
+      
+      console.log(`${selectedFeatures.length} blocks deleted`);
+    }
+  }, [selectedFeatures, onBlockDelete]);
 
   // Handle measurement selection
   const handleMeasurementClick = useCallback((feature: Feature) => {
@@ -551,8 +671,10 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
             handleMeasurementClick(feature);
           }
         } else {
-          // Clicked on empty area, clear selection
-          clearAllSelections();
+          // Clicked on empty area, clear selection if not in multiselect mode
+          if (drawingMode !== 'multiselect') {
+            clearAllSelections();
+          }
         }
       });
 
@@ -919,6 +1041,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
       map.addInteraction(select);
       setCurrentSelect(select);
+
+    } else if (drawingMode === 'multiselect') {
+      // Modo multiseleção - não precisa de interações especiais do OpenLayers
+      // A seleção é gerenciada pelo click handler
+      console.log('Multiselect mode activated');
     }
   }, [drawingMode, selectedColor, transparency, onPolygonDrawn, onBlockUpdate, onBlockDelete, calculatePolygonMetrics, createBlockStyle, handleBlockClick, updateFeatureStyle, createMeasurementStyle, measurements.length, createMeasureTooltip, formatLength]);
 
@@ -944,6 +1071,26 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       });
     }
   }, [centerCoordinates, boundingBox]);
+
+  // Update all existing blocks when global transparency or print mode changes
+  useEffect(() => {
+    if (!vectorSource.current || !mapReady) return;
+
+    console.log('Updating styles for all blocks - transparency:', transparency, 'print mode:', printMode);
+    
+    vectorSource.current.getFeatures().forEach(feature => {
+      const blockData = feature.get('blockData');
+      // Update all blocks with new style (print mode affects stroke)
+      updateFeatureStyle(
+        feature,
+        blockData?.nome || feature.get('name') || '',
+        blockData?.cor || feature.get('color') || selectedColor,
+        blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
+        blockData?.area_acres,
+        feature.get('isSelected') || false
+      );
+    });
+  }, [transparency, selectedColor, printMode, mapReady, updateFeatureStyle]);
 
   // Quick Edit Panel - Block
   const editPanel = editingBlock && selectedFeature && (
@@ -1061,25 +1208,110 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     </div>
   );
 
-  // Update all existing blocks when global transparency or print mode changes
-  useEffect(() => {
-    if (!vectorSource.current || !mapReady) return;
+  // Multi-select Edit Panel
+  const multiEditPanel = selectedFeatures.length > 0 && drawingMode === 'multiselect' && (
+    <div className="absolute top-4 right-4 z-50">
+      <Card className="w-80 bg-white shadow-lg border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <MousePointer2 className="w-5 h-5" />
+            Multiseleção ({selectedFeatures.length} blocos)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="multi-edit-color">Cor dos Blocos</Label>
+            <UISelect 
+              value={multiEditForm.color} 
+              onValueChange={(value) => setMultiEditForm({...multiEditForm, color: value})}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-white border shadow-lg z-50">
+                {colorOptions.map((color) => (
+                  <SelectItem key={color.value} value={color.value}>
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className="w-4 h-4 rounded-full border border-gray-300"
+                        style={{ backgroundColor: color.value }}
+                      />
+                      <div>
+                        <span className="font-medium">{color.label}</span>
+                        <span className="text-xs text-gray-500 ml-2">{color.name}</span>
+                      </div>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </UISelect>
+          </div>
 
-    console.log('Updating styles for all blocks - transparency:', transparency, 'print mode:', printMode);
-    
-    vectorSource.current.getFeatures().forEach(feature => {
-      const blockData = feature.get('blockData');
-      // Update all blocks with new style (print mode affects stroke)
-      updateFeatureStyle(
-        feature,
-        blockData?.nome || feature.get('name') || '',
-        blockData?.cor || feature.get('color') || selectedColor,
-        blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
-        blockData?.area_acres,
-        feature.get('isSelected') || false
-      );
-    });
-  }, [transparency, selectedColor, printMode, mapReady, updateFeatureStyle]);
+          <div>
+            <Label htmlFor="multi-transparency-slider">
+              Transparência: {Math.round((1 - multiEditForm.transparency) * 100)}%
+            </Label>
+            <Slider
+              id="multi-transparency-slider"
+              value={[multiEditForm.transparency]}
+              onValueChange={(value) => setMultiEditForm({...multiEditForm, transparency: value[0]})}
+              max={1}
+              min={0}
+              step={0.01}
+              className="w-full mt-2"
+            />
+          </div>
+
+          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <h4 className="font-medium text-blue-900 mb-2">Blocos Selecionados</h4>
+            <div className="max-h-24 overflow-y-auto">
+              {selectedFeatures.map((feature, index) => {
+                const blockData = feature.get('blockData');
+                return (
+                  <div key={index} className="text-sm text-blue-800">
+                    {blockData?.nome || `Bloco ${index + 1}`}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          
+          <div className="flex gap-2 pt-2">
+            <Button 
+              onClick={handleMultiSave}
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
+              size="sm"
+            >
+              <Save className="w-4 h-4 mr-2" />
+              Aplicar a Todos
+            </Button>
+            <Button 
+              onClick={handleMultiDelete}
+              variant="destructive"
+              size="sm"
+              className="flex-1"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Deletar Todos
+            </Button>
+            <Button 
+              onClick={() => {
+                clearAllSelections();
+              }}
+              variant="outline"
+              size="sm"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="text-xs text-gray-500 pt-2">
+            <strong>Dica:</strong> Clique nos blocos para selecioná-los ou deselecioná-los. Use Ctrl+Click para múltiplas seleções.
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
 
   return (
     <div className="relative w-full h-full">
@@ -1102,6 +1334,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       />
       
       {editPanel}
+      {multiEditPanel}
 
       {/* Quick Edit Panel - Measurement */}
       {editingMeasurement && (
