@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -60,11 +59,11 @@ const AdvancedMapEditor = () => {
   const [searchParams] = useSearchParams();
   const selectedFarmId = searchParams.get('fazenda');
   
-  const { farms } = useFarms();
-  const selectedFarm = farms?.find((farm: Farm) => farm.id === selectedFarmId);
+  const { data: farms } = useFarms();
+  const selectedFarm = farms?.find(farm => farm.id === selectedFarmId);
   
   const { 
-    blocks, 
+    data: blocks = [], 
     addBlock, 
     updateBlock, 
     deleteBlock 
@@ -85,7 +84,7 @@ const AdvancedMapEditor = () => {
     if (!selectedFarmId) return;
     
     try {
-      await addBlock({
+      await addBlock.mutateAsync({
         fazenda_id: selectedFarmId,
         nome: blockData.name,
         coordenadas: blockData.coordinates,
@@ -102,7 +101,10 @@ const AdvancedMapEditor = () => {
 
   const handleBlockUpdate = async (blockId: string, updates: any) => {
     try {
-      await updateBlock(blockId, updates);
+      await updateBlock.mutateAsync({ 
+        id: blockId, 
+        updates 
+      });
     } catch (error) {
       console.error('Erro ao atualizar bloco:', error);
     }
@@ -110,7 +112,7 @@ const AdvancedMapEditor = () => {
 
   const handleBlockDelete = async (blockId: string) => {
     try {
-      await deleteBlock(blockId);
+      await deleteBlock.mutateAsync(blockId);
     } catch (error) {
       console.error('Erro ao deletar bloco:', error);
     }
@@ -149,13 +151,13 @@ const AdvancedMapEditor = () => {
   ];
 
   // Block statistics
-  const totalArea = blocks?.reduce((sum: number, block: any) => sum + (block.area_acres || 0), 0) || 0;
-  const totalBlocks = blocks?.length || 0;
-  const colorCounts = blocks?.reduce((acc: Record<string, number>, block: any) => {
+  const totalArea = blocks.reduce((sum, block) => sum + (block.area_acres || 0), 0);
+  const totalBlocks = blocks.length;
+  const colorCounts = blocks.reduce((acc, block) => {
     const color = block.cor || '#10B981';
     acc[color] = (acc[color] || 0) + 1;
     return acc;
-  }, {}) || {};
+  }, {} as Record<string, number>);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -334,7 +336,7 @@ const AdvancedMapEditor = () => {
               </Card>
 
               {/* Block Statistics */}
-              {blocks && blocks.length > 0 && (
+              {blocks.length > 0 && (
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-sm">Estatísticas</CardTitle>
@@ -374,7 +376,7 @@ const AdvancedMapEditor = () => {
             <Card className="h-[800px]">
               <CardContent className="p-0 h-full">
                 <AdvancedMapComponent
-                  blocks={blocks || []}
+                  blocks={blocks}
                   selectedColor={selectedColor}
                   transparency={transparency}
                   showSatellite={showSatellite}
