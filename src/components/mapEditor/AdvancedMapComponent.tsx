@@ -24,6 +24,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
 import { Save, X, Edit2, Trash2, Ruler, MousePointer2 } from 'lucide-react';
+import { MapContextMenu } from './MapContextMenu';
 import 'ol/ol.css';
 
 interface BlockData {
@@ -62,6 +63,12 @@ interface AdvancedMapComponentProps {
   onBlockSelect: (block: any) => void;
   centerCoordinates?: [number, number];
   boundingBox?: [number, number, number, number];
+  onColorChange?: (color: string) => void;
+  onTransparencyChange?: (transparency: number) => void;
+  onToggleSatellite?: () => void;
+  onToggleBackground?: () => void;
+  onTogglePrintMode?: () => void;
+  onDrawingModeChange?: (mode: 'polygon' | 'edit' | 'delete' | 'measure' | 'multiselect' | null) => void;
 }
 
 const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
@@ -78,7 +85,13 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   onBlockDelete,
   onBlockSelect,
   centerCoordinates,
-  boundingBox
+  boundingBox,
+  onColorChange,
+  onTransparencyChange,
+  onToggleSatellite,
+  onToggleBackground,
+  onTogglePrintMode,
+  onDrawingModeChange
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstance = useRef<Map | null>(null);
@@ -497,124 +510,24 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     setSelectedFeature(null);
   }, [editingBlock, selectedFeature, editForm, onBlockUpdate, updateFeatureStyle]);
 
-  // Handle save measurement
-  const handleSaveMeasurement = useCallback(() => {
-    if (!editingMeasurement) return;
-
-    const updatedMeasurement = {
-      ...editingMeasurement,
-      name: measurementForm.name,
-      isDrain: measurementForm.isDrain
-    };
-
-    // Update measurements array
-    setMeasurements(prev => prev.map(m => 
-      m.id === editingMeasurement.id ? updatedMeasurement : m
-    ));
-
-    // Update feature style
-    if (measurementSource.current) {
-      const features = measurementSource.current.getFeatures();
-      const feature = features.find(f => f.get('measurementId') === editingMeasurement.id);
-      if (feature) {
-        feature.set('measurementData', updatedMeasurement);
-        feature.setStyle(createMeasurementStyle(updatedMeasurement));
-      }
+  // Handle context menu actions
+  const handleContextMenuColorChange = useCallback((color: string) => {
+    if (onColorChange) {
+      onColorChange(color);
     }
+  }, [onColorChange]);
 
-    setEditingMeasurement(null);
-    setMeasurementForm({ name: '', isDrain: false });
-  }, [editingMeasurement, measurementForm, createMeasurementStyle]);
-
-  // Handle delete edit
-  const handleDeleteEdit = useCallback(() => {
-    if (!editingBlock || !selectedFeature) return;
-
-    const blockId = selectedFeature.get('blockId');
-    const blockName = editingBlock.nome || 'Bloco sem nome';
-    
-    if (confirm(`Tem certeza que deseja deletar o bloco "${blockName}"?`)) {
-      // Remove from vector source
-      if (vectorSource.current) {
-        vectorSource.current.removeFeature(selectedFeature);
-      }
-      
-      // Call parent delete function
-      onBlockDelete(blockId);
-      
-      // Clear selection
-      setEditingBlock(null);
-      setEditForm({ name: '', color: '#10B981', transparency: 0.4 });
-      setSelectedFeature(null);
-      
-      console.log('Block deleted:', blockId);
+  const handleContextMenuTransparencyChange = useCallback((newTransparency: number) => {
+    if (onTransparencyChange) {
+      onTransparencyChange(newTransparency);
     }
-  }, [editingBlock, selectedFeature, onBlockDelete]);
+  }, [onTransparencyChange]);
 
-  // Handle delete measurement
-  const handleDeleteMeasurement = useCallback(() => {
-    if (!editingMeasurement) return;
-
-    if (confirm(`Tem certeza que deseja deletar a medição "${editingMeasurement.name}"?`)) {
-      // Remove from measurements array
-      setMeasurements(prev => prev.filter(m => m.id !== editingMeasurement.id));
-
-      // Remove from vector source
-      if (measurementSource.current) {
-        const features = measurementSource.current.getFeatures();
-        const feature = features.find(f => f.get('measurementId') === editingMeasurement.id);
-        if (feature) {
-          measurementSource.current.removeFeature(feature);
-        }
-      }
-
-      setEditingMeasurement(null);
-      setMeasurementForm({ name: '', isDrain: false });
+  const handleContextMenuModeChange = useCallback((mode: typeof drawingMode) => {
+    if (onDrawingModeChange) {
+      onDrawingModeChange(mode);
     }
-  }, [editingMeasurement]);
-
-  // Handle cancel edit
-  const handleCancelEdit = useCallback(() => {
-    clearAllSelections();
-  }, [clearAllSelections]);
-
-  // Create measurement tooltip
-  const createMeasureTooltip = useCallback(() => {
-    if (measureTooltipElement.current) {
-      measureTooltipElement.current.parentNode?.removeChild(measureTooltipElement.current);
-    }
-    
-    measureTooltipElement.current = document.createElement('div');
-    measureTooltipElement.current.className = 'ol-tooltip ol-tooltip-measure';
-    measureTooltipElement.current.style.cssText = `
-      position: absolute;
-      background-color: rgba(0, 0, 0, 0.8);
-      color: white;
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 12px;
-      white-space: nowrap;
-      pointer-events: none;
-      z-index: 1000;
-    `;
-    
-    if (mapInstance.current) {
-      const overlay = new Overlay({
-        element: measureTooltipElement.current,
-        offset: [0, -15],
-        positioning: 'bottom-center',
-      });
-      mapInstance.current.addOverlay(overlay);
-      measureTooltip.current = overlay;
-    }
-  }, []);
-
-  // Format length for display - always in feet
-  const formatLength = useCallback((line: LineString) => {
-    const lengthInMeters = getLength(line);
-    const lengthInFt = lengthInMeters * 3.28084; // Convert meters to feet
-    return Math.round(lengthInFt * 10) / 10 + ' ft';
-  }, []);
+  }, [onDrawingModeChange]);
 
   // Inicializar mapa - uma única vez
   useEffect(() => {
@@ -716,6 +629,11 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
             clearAllSelections();
           }
         }
+      });
+
+      // Disable default right-click context menu
+      map.getViewport().addEventListener('contextmenu', (e) => {
+        e.preventDefault();
       });
 
       mapInstance.current = map;
@@ -1132,339 +1050,126 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     });
   }, [transparency, selectedColor, printMode, mapReady, updateFeatureStyle]);
 
-  // Quick Edit Panel - Block
-  const editPanel = editingBlock && selectedFeature && (
-    <div className="absolute top-4 right-4 z-50">
-      <Card className="w-80 bg-white shadow-lg border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Edit2 className="w-5 h-5" />
-            Edição Rápida - Bloco
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="quick-edit-name">Nome do Bloco</Label>
-            <Input
-              id="quick-edit-name"
-              value={editForm.name}
-              onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-              placeholder="Digite o nome do bloco"
-            />
-          </div>
-          
-          <div>
-            <Label htmlFor="quick-edit-color">Cor do Bloco</Label>
-            <UISelect 
-              value={editForm.color} 
-              onValueChange={(value) => setEditForm({...editForm, color: value})}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-white border shadow-lg z-50">
-                {colorOptions.map((color) => (
-                  <SelectItem key={color.value} value={color.value}>
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-4 h-4 rounded-full border border-gray-300"
-                        style={{ backgroundColor: color.value }}
-                      />
-                      <div>
-                        <span className="font-medium">{color.label}</span>
-                        <span className="text-xs text-gray-500 ml-2">{color.name}</span>
-                      </div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </UISelect>
-          </div>
-
-          <div>
-            <Label htmlFor="transparency-slider">
-              Transparência: {Math.round((1 - editForm.transparency) * 100)}%
-            </Label>
-            <Slider
-              id="transparency-slider"
-              value={[editForm.transparency]}
-              onValueChange={(value) => setEditForm({...editForm, transparency: value[0]})}
-              max={1}
-              min={0}
-              step={0.01}
-              className="w-full mt-2"
-            />
-          </div>
-
-          {/* Display block metrics - only acres */}
-          {editingBlock && (
-            <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-              <h4 className="font-medium text-green-900 mb-2">Dados do Bloco</h4>
-              <div className="grid grid-cols-1 gap-2 text-sm">
-                <div>
-                  <span className="text-green-700">ID:</span>
-                  <p className="font-medium text-xs">{selectedFeature.get('blockId')}</p>
-                </div>
-                <div>
-                  <span className="text-green-700">Área:</span>
-                  <p className="font-medium">{editingBlock.area_acres?.toFixed(1) || 0} acres</p>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <div className="flex gap-2 pt-2">
-            <Button 
-              onClick={handleSaveEdit}
-              className="flex-1 bg-green-600 hover:bg-green-700"
-              size="sm"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Salvar
-            </Button>
-            <Button 
-              onClick={handleDeleteEdit}
-              variant="destructive"
-              size="sm"
-              className="flex-1"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Deletar
-            </Button>
-            <Button 
-              onClick={handleCancelEdit}
-              variant="outline"
-              size="sm"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-
-          <div className="text-xs text-gray-500 pt-2">
-            <strong>Dica:</strong> Clique em qualquer bloco no mapa para editar rapidamente seu nome e cor.
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
-  // Multi-select Edit Panel with improved UI
-  const multiEditPanel = selectedFeatures.length > 0 && (drawingMode === 'multiselect' || isShiftPressed) && (
-    <div className="absolute top-4 right-4 z-50">
-      <Card className="w-80 bg-white shadow-lg border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <MousePointer2 className="w-5 h-5" />
-            Multiseleção ({selectedFeatures.length} blocos)
-          </CardTitle>
-          <div className="text-sm text-gray-600">
-            {isShiftPressed ? 'Modo: Shift + Clique' : 'Modo: Multiseleção Ativo'}
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="multi-edit-color">Cor dos Blocos</Label>
-            <UISelect 
-              value={multiEditForm.color} 
-              onValueChange={(value) => setMultiEditForm({...multiEditForm, color: value})}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-white border shadow-lg z-50">
-                {colorOptions.map((color) => (
-                  <SelectItem key={color.value} value={color.value}>
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-4 h-4 rounded-full border border-gray-300"
-                        style={{ backgroundColor: color.value }}
-                      />
-                      <div>
-                        <span className="font-medium">{color.label}</span>
-                        <span className="text-xs text-gray-500 ml-2">{color.name}</span>
-                      </div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </UISelect>
-          </div>
-
-          <div>
-            <Label htmlFor="multi-transparency-slider">
-              Transparência: {Math.round((1 - multiEditForm.transparency) * 100)}%
-            </Label>
-            <Slider
-              id="multi-transparency-slider"
-              value={[multiEditForm.transparency]}
-              onValueChange={(value) => setMultiEditForm({...multiEditForm, transparency: value[0]})}
-              max={1}
-              min={0}
-              step={0.01}
-              className="w-full mt-2"
-            />
-          </div>
-
-          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-            <h4 className="font-medium text-blue-900 mb-2">Blocos Selecionados</h4>
-            <div className="max-h-24 overflow-y-auto">
-              {selectedFeatures.map((feature, index) => {
-                const blockData = feature.get('blockData');
-                return (
-                  <div key={index} className="text-sm text-blue-800 flex items-center justify-between">
-                    <span>{blockData?.nome || `Bloco ${index + 1}`}</span>
-                    <div 
-                      className="w-3 h-3 rounded-full border border-gray-300"
-                      style={{ backgroundColor: blockData?.cor || '#10B981' }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          
-          <div className="flex gap-2 pt-2">
-            <Button 
-              onClick={handleMultiSave}
-              className="flex-1 bg-blue-600 hover:bg-blue-700"
-              size="sm"
-            >
-              <Save className="w-4 h-4 mr-2" />
-              Aplicar a Todos
-            </Button>
-            <Button 
-              onClick={handleMultiDelete}
-              variant="destructive"
-              size="sm"
-              className="flex-1"
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Deletar Todos
-            </Button>
-            <Button 
-              onClick={() => {
-                clearAllSelections();
-              }}
-              variant="outline"
-              size="sm"
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-
-          <div className="text-xs text-gray-500 pt-2">
-            <strong>Dica:</strong> Segure <kbd className="px-1 py-0.5 bg-gray-200 rounded text-xs">Shift</kbd> + clique nos blocos para selecioná-los. Use o botão Multiseleção para modo contínuo.
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
   return (
-    <div className="relative w-full h-full">
-      {!mapReady && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg z-10">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-2"></div>
-            <p className="text-gray-600">Carregando mapa...</p>
+    <MapContextMenu
+      drawingMode={drawingMode}
+      onModeChange={handleContextMenuModeChange}
+      onColorChange={handleContextMenuColorChange}
+      selectedColor={selectedColor}
+      transparency={transparency}
+      onTransparencyChange={handleContextMenuTransparencyChange}
+      showSatellite={showSatellite}
+      onToggleSatellite={onToggleSatellite || (() => {})}
+      showBackground={showBackground}
+      onToggleBackground={onToggleBackground || (() => {})}
+      printMode={printMode}
+      onTogglePrintMode={onTogglePrintMode || (() => {})}
+    >
+      <div className="relative w-full h-full">
+        {!mapReady && (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg z-10">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-2"></div>
+              <p className="text-gray-600">Carregando mapa...</p>
+            </div>
           </div>
-        </div>
-      )}
-      
-      <div
-        ref={mapRef}
-        className="w-full h-full border border-gray-300 rounded-lg"
-        style={{ 
-          minHeight: '500px',
-          backgroundColor: printMode ? 'white' : 'transparent' 
-        }}
-      />
-      
-      {editPanel}
-      {multiEditPanel}
+        )}
+        
+        <div
+          ref={mapRef}
+          className="w-full h-full border border-gray-300 rounded-lg"
+          style={{ 
+            minHeight: '500px',
+            backgroundColor: printMode ? 'white' : 'transparent' 
+          }}
+        />
+        
+        {editPanel}
+        {multiEditPanel}
 
-      {/* Quick Edit Panel - Measurement */}
-      {editingMeasurement && (
-        <div className="absolute top-4 right-4 z-50">
-          <Card className="w-80 bg-white shadow-lg border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Ruler className="w-5 h-5" />
-                Edição - Medição
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="measurement-name">Nome da Medição</Label>
-                <Input
-                  id="measurement-name"
-                  value={measurementForm.name}
-                  onChange={(e) => setMeasurementForm({...measurementForm, name: e.target.value})}
-                  placeholder="Digite o nome da medição"
-                />
-              </div>
+        {/* Quick Edit Panel - Measurement */}
+        {editingMeasurement && (
+          <div className="absolute top-4 right-4 z-50">
+            <Card className="w-80 bg-white shadow-lg border">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Ruler className="w-5 h-5" />
+                  Edição - Medição
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <Label htmlFor="measurement-name">Nome da Medição</Label>
+                  <Input
+                    id="measurement-name"
+                    value={measurementForm.name}
+                    onChange={(e) => setMeasurementForm({...measurementForm, name: e.target.value})}
+                    placeholder="Digite o nome da medição"
+                  />
+                </div>
 
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="is-drain"
-                  checked={measurementForm.isDrain}
-                  onCheckedChange={(checked) => setMeasurementForm({...measurementForm, isDrain: !!checked})}
-                />
-                <Label htmlFor="is-drain">É um dreno (cor azul)</Label>
-              </div>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="is-drain"
+                    checked={measurementForm.isDrain}
+                    onCheckedChange={(checked) => setMeasurementForm({...measurementForm, isDrain: !!checked})}
+                  />
+                  <Label htmlFor="is-drain">É um dreno (cor azul)</Label>
+                </div>
 
-              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <h4 className="font-medium text-blue-900 mb-2">Dados da Medição</h4>
-                <div className="grid grid-cols-1 gap-2 text-sm">
-                  <div>
-                    <span className="text-blue-700">Distância:</span>
-                    <p className="font-medium">{editingMeasurement.distance.toFixed(1)} metros</p>
-                  </div>
-                  <div>
-                    <span className="text-blue-700">Tipo:</span>
-                    <p className="font-medium">{measurementForm.isDrain ? 'Dreno' : 'Medição'}</p>
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="font-medium text-blue-900 mb-2">Dados da Medição</h4>
+                  <div className="grid grid-cols-1 gap-2 text-sm">
+                    <div>
+                      <span className="text-blue-700">Distância:</span>
+                      <p className="font-medium">{editingMeasurement.distance.toFixed(1)} metros</p>
+                    </div>
+                    <div>
+                      <span className="text-blue-700">Tipo:</span>
+                      <p className="font-medium">{measurementForm.isDrain ? 'Dreno' : 'Medição'}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              <div className="flex gap-2 pt-2">
-                <Button 
-                  onClick={handleSaveMeasurement}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
-                  size="sm"
-                >
-                  <Save className="w-4 h-4 mr-2" />
-                  Salvar
-                </Button>
-                <Button 
-                  onClick={handleDeleteMeasurement}
-                  variant="destructive"
-                  size="sm"
-                  className="flex-1"
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Deletar
-                </Button>
-                <Button 
-                  onClick={() => {
-                    setEditingMeasurement(null);
-                    setMeasurementForm({ name: '', isDrain: false });
-                  }}
-                  variant="outline"
-                  size="sm"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
+                
+                <div className="flex gap-2 pt-2">
+                  <Button 
+                    onClick={handleSaveMeasurement}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                    size="sm"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Salvar
+                  </Button>
+                  <Button 
+                    onClick={handleDeleteMeasurement}
+                    variant="destructive"
+                    size="sm"
+                    className="flex-1"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Deletar
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      setEditingMeasurement(null);
+                      setMeasurementForm({ name: '', isDrain: false });
+                    }}
+                    variant="outline"
+                    size="sm"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
 
-              <div className="text-xs text-gray-500 pt-2">
-                <strong>Dica:</strong> Clique em qualquer medição no mapa para editar rapidamente.
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-    </div>
+                <div className="text-xs text-gray-500 pt-2">
+                  <strong>Dica:</strong> Clique em qualquer medição no mapa para editar rapidamente.
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+    </MapContextMenu>
   );
 };
 
