@@ -114,28 +114,18 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
 
   // Criar estilo para blocos com nome como legenda e área (apenas acres)
   const createBlockStyle = useCallback((color: string, transparency: number, name?: string, area_acres?: number, isSelected?: boolean) => {
-    const displayText = name ? `${name}\n${area_acres?.toFixed(1) || 0} acres` : '';
+    const displayText = name ? `${name}\n${area_acres?.toFixed(4) || 0} acres` : '';
     
     // Convert transparency to alpha correctly - transparency 0 = fully opaque, transparency 1 = fully transparent
     const alpha = Math.round((1 - transparency) * 255).toString(16).padStart(2, '0');
-    
-    // Define stroke based on print mode and selection
-    let strokeColor = isSelected ? '#FFD700' : color;
-    let strokeWidth = isSelected ? 4 : 2;
-    
-    // In print mode, always use black border with 2px width for better visibility
-    if (printMode) {
-      strokeColor = '#000000';
-      strokeWidth = 2;
-    }
     
     return new Style({
       fill: new Fill({
         color: color + alpha,
       }),
       stroke: new Stroke({
-        color: strokeColor,
-        width: strokeWidth,
+        color: isSelected ? '#FFD700' : color,
+        width: isSelected ? 4 : 2,
       }),
       text: displayText ? new Text({
         text: displayText,
@@ -147,13 +137,13 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
         textBaseline: 'middle',
       }) : undefined,
     });
-  }, [printMode]);
+  }, []);
 
   // Criar estilo para medições
   const createMeasurementStyle = useCallback((measurement: MeasurementData, isSelected?: boolean) => {
     const color = measurement.isDrain ? '#3B82F6' : '#FF6B35';
     const distanceInFt = measurement.distance * 3.28084; // Convert meters to feet
-    const displayText = `${measurement.name}\n${distanceInFt.toFixed(1)}ft`;
+    const displayText = `${measurement.name}\n${distanceInFt.toFixed(2)}ft`;
     
     return new Style({
       stroke: new Stroke({
@@ -192,9 +182,9 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
       const areaAcres = area * 0.000247105; // conversão para acres
 
       return {
-        area_m2: Math.round(area * 10) / 10,
-        area_acres: Math.round(areaAcres * 10) / 10,
-        perimeter: Math.round(perimeter * 10) / 10
+        area_m2: Math.round(area * 100) / 100,
+        area_acres: Math.round(areaAcres * 10000) / 10000,
+        perimeter: Math.round(perimeter * 100) / 100
       };
     } catch (error) {
       console.error('Erro no cálculo de métricas:', error);
@@ -459,7 +449,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
   const formatLength = useCallback((line: LineString) => {
     const lengthInMeters = getLength(line);
     const lengthInFt = lengthInMeters * 3.28084; // Convert meters to feet
-    return Math.round(lengthInFt * 10) / 10 + ' ft';
+    return Math.round(lengthInFt * 100) / 100 + ' ft';
   }, []);
 
   // Inicializar mapa - uma única vez
@@ -864,7 +854,6 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
               feature,
               blockData?.nome || feature.get('name') || '',
               blockData?.cor || feature.get('color') || selectedColor,
-              blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
               metrics.area_acres,
               feature.get('isSelected') || false
             );
@@ -1020,7 +1009,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
                 </div>
                 <div>
                   <span className="text-green-700">Área:</span>
-                  <p className="font-medium">{editingBlock.area_acres?.toFixed(1) || 0} acres</p>
+                  <p className="font-medium">{editingBlock.area_acres?.toFixed(4) || 0} acres</p>
                 </div>
               </div>
             </div>
@@ -1061,25 +1050,27 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
     </div>
   );
 
-  // Update all existing blocks when global transparency or print mode changes
+  // Update all existing blocks when global transparency changes
   useEffect(() => {
     if (!vectorSource.current || !mapReady) return;
 
-    console.log('Updating styles for all blocks - transparency:', transparency, 'print mode:', printMode);
+    console.log('Updating transparency for all blocks:', transparency);
     
     vectorSource.current.getFeatures().forEach(feature => {
       const blockData = feature.get('blockData');
-      // Update all blocks with new style (print mode affects stroke)
-      updateFeatureStyle(
-        feature,
-        blockData?.nome || feature.get('name') || '',
-        blockData?.cor || feature.get('color') || selectedColor,
-        blockData?.transparencia !== undefined ? blockData.transparencia : transparency,
-        blockData?.area_acres,
-        feature.get('isSelected') || false
-      );
+      // Only update blocks that don't have their own custom transparency
+      if (blockData && blockData.transparencia === undefined) {
+        updateFeatureStyle(
+          feature,
+          blockData.nome || feature.get('name') || '',
+          blockData.cor || feature.get('color') || selectedColor,
+          transparency, // Use global transparency
+          blockData.area_acres,
+          feature.get('isSelected') || false
+        );
+      }
     });
-  }, [transparency, selectedColor, printMode, mapReady, updateFeatureStyle]);
+  }, [transparency, selectedColor, mapReady, updateFeatureStyle]);
 
   return (
     <div className="relative w-full h-full">
@@ -1138,7 +1129,7 @@ const AdvancedMapComponent: React.FC<AdvancedMapComponentProps> = ({
                 <div className="grid grid-cols-1 gap-2 text-sm">
                   <div>
                     <span className="text-blue-700">Distância:</span>
-                    <p className="font-medium">{editingMeasurement.distance.toFixed(1)} metros</p>
+                    <p className="font-medium">{editingMeasurement.distance.toFixed(2)} metros</p>
                   </div>
                   <div>
                     <span className="text-blue-700">Tipo:</span>
